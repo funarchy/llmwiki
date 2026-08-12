@@ -473,15 +473,15 @@ across the cut are not symmetric:
 - **moved → stayed** is **illegal**. It would make the dependency's bundle
   depend on its consumer's, which is a cycle.
 
-So `extract --dry-run` prints the cut analysis first: which pages move, which
-links cross in each direction, and specifically which are illegal. The real run
-performs the move, rewrites the legal direction, and leaves each illegal
-cross-link flagged for a human — usually resolved by moving another page too,
-or by demoting the reference to prose.
+An illegal cross-link is resolved by moving another page too, or by demoting the
+reference to prose. Doing this by hand means auditing the moved pages' footer
+definitions for anything still pointing at the consumer — mechanical, since
+every link is a footer definition (§3.3).
 
-When the command is eventually built: the target repository must already have a
-bundle root, `--dry-run` prints the cut analysis before anything moves, and it
-never commits — both repositories are left dirty for review.
+When the command is eventually built: `--dry-run` prints the cut analysis before
+anything moves (which pages move, which links cross in each direction, which are
+illegal), the target repository must already have a bundle root, and it never
+commits — both repositories are left dirty for review.
 
 ## 10. CLI surface
 
@@ -652,7 +652,7 @@ src/
   vendor/                 copy.ts  rewrite.ts  hash.ts
   generate/               deps and vendor index generation
   lint/                   checks/*.ts  run.ts
-  commands/               init add rm install update lint gaps extract skills
+  commands/               init add rm install update lint gaps skills
 schemas/                  llmwiki.schema.json  page.schema.json
 skills/                   wiki-{ingest,search,eval,review,vendor}/SKILL.md
 templates/                index.md  CLAUDE.md pointer
