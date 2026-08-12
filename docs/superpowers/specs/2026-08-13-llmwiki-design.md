@@ -450,15 +450,23 @@ takes the top-level one and warns loudly.
 Dependency cycles are likewise rejected: nothing else prevents two bundles
 declaring each other.
 
-## 9. Extraction is a graph cut
+## 9. Extraction is a graph cut — deferred past v1
 
-`llmwiki extract <path…> --to <repo>` moves pages out of a consumer into a
-dependency's repository. This is the day-one operation on an existing wiki —
-getting futuramath's `wiki/stack/pms` into the scenepad repository — and it is
-the only way an existing bundle gets decomposed.
+**Not in v1.** Recorded here because the constraint it describes is real
+whether or not a tool enforces it, and because `wiki-ingest` owns the same
+judgment (§12).
 
-Moving pages cuts the link graph, and the two directions across the cut are not
-symmetric:
+`llmwiki extract <path…> --to <repo>` would move pages out of a consumer into a
+dependency's repository. The first real case — getting futuramath's
+`wiki/stack/pms` into the scenepad repository — is instead handled by
+regenerating scenepad's bundle from scenepad's own source once it is
+open-sourced. That produces better pages than relocating existing ones would:
+futuramath's PMS pages were written from a consumer's vantage point, and a
+producer's bundle should be written from the producer's.
+
+The asymmetry below still governs the manual version of this work, which is why
+it stays in the spec. Moving pages cuts the link graph, and the two directions
+across the cut are not symmetric:
 
 - **stayed → moved** is fine. Those links become `deps/<name>/…` links once the
   dependency is added, and the CLI rewrites them.
@@ -471,10 +479,9 @@ performs the move, rewrites the legal direction, and leaves each illegal
 cross-link flagged for a human — usually resolved by moving another page too,
 or by demoting the reference to prose.
 
-The target repository must already have a bundle root; if it has no
-`llmwiki.yaml`, `extract` stops and tells you to run `llmwiki init` there first.
-
-`extract` never commits. Both repositories are left dirty for review.
+When the command is eventually built: the target repository must already have a
+bundle root, `--dry-run` prints the cut analysis before anything moves, and it
+never commits — both repositories are left dirty for review.
 
 ## 10. CLI surface
 
@@ -486,9 +493,10 @@ llmwiki install [--frozen]           idempotent reconcile from llmwiki.yaml + lo
 llmwiki update [pkg]                 re-resolve, report the knowledge diff
 llmwiki lint [--fix]                 the mechanical layer (§11)
 llmwiki gaps                         eval cases to_resolve + pages containing **Stub.**
-llmwiki extract <path…> --to <repo> [--dry-run]
 llmwiki skills sync                  reinstall skills from the installed CLI version
 ```
+
+`llmwiki extract` (§9) is deferred past v1.
 
 `install` is the command for `postinstall` and CI. `--frozen` fails instead of
 relocking — the `npm ci` equivalent.
@@ -557,7 +565,7 @@ what actually make the agent reach for the wiki unprompted.
 
 | Skill | Job | Dependency-aware behaviour |
 | --- | --- | --- |
-| `wiki-ingest` | The write path: synthesize a source into pages, wire indexes, cross-link | **Refuses to write into `deps/**`.** When knowledge belongs to a dependency it says so and points at the producing repository. Also owns extraction judgment (§9) — deciding what belongs upstream and driving `llmwiki extract` |
+| `wiki-ingest` | The write path: synthesize a source into pages, wire indexes, cross-link | **Refuses to write into `deps/**`.** When knowledge belongs to a dependency it says so and points at the producing repository. Also owns extraction judgment (§9) — deciding what belongs upstream, and analysing the cut by hand while `llmwiki extract` is deferred |
 | `wiki-search` | The read path: navigate from the root index, answer, cite pages, surface gaps | Crosses into `deps/` and `vendor/`, and **reports which subtree an answer came from**, so "synthesized from their docs" never reads as "upstream said so" |
 | `wiki-eval` | Usability tests: `add`, single run, batch, `list` | A case failing in dependency territory is an **upstream gap**, reported as such rather than patched locally |
 | `wiki-review` | Adversarial: data loss against source, inter-page conflicts, convention judgment, cross-reference saturation | Never reviews `deps/**` — not ours. Does review `vendor/**` — ours |
@@ -671,8 +679,8 @@ Test-driven. The purity above is what makes that cheap rather than ceremonial.
   dependency, a dependency with its own dependency, a conflicting pair, a
   cyclic pair, and a producer using a non-default bundle root name.
 - **Integration** — run the CLI against a temporary copy of a fixture; assert
-  the resulting tree, the lock, and the exit code. This covers `add`,
-  `install`, `update` and `extract`.
+  the resulting tree, the lock, and the exit code. This covers `add`, `install`
+  and `update`.
 - **Golden** — snapshot `init` output.
 - **Skill/CLI drift** — parse each `SKILL.md` for `llmwiki <cmd>` mentions and
   assert the command exists. Cheap, and it catches the failure mode nobody
@@ -729,9 +737,9 @@ something real to navigate.
 
 ## 17. Non-goals for v1
 
-A registry or standalone bundle publishing; `git:` resolution; non-markdown
-content; a web viewer; anything involving embeddings or vector retrieval;
-multi-language bundles.
+`llmwiki extract` (§9); a registry or standalone bundle publishing; `git:`
+resolution; non-markdown content; a web viewer; anything involving embeddings or
+vector retrieval; multi-language bundles.
 
 Deferring the registry costs nothing, because a bundle is a directory plus a
 manifest: a `vendor/` bundle can later be promoted to a published
