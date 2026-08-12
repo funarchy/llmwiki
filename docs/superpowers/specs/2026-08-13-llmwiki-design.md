@@ -32,7 +32,7 @@ packaging. That is exactly the hole llmwiki fills.
 | --- | --- |
 | Page anatomy, frontmatter families, index files, versioning | OKF v0.2 |
 | Stricter schema — `type`, `title`, `description`, `sources` all required | llmwiki |
-| Reference-style relative links only | llmwiki |
+| Reference-style, repo-root-absolute links only | llmwiki |
 | Bundle identity, dependency declaration, resolution, vendoring | **llmwiki** |
 | Mechanical lint | llmwiki CLI |
 | Ingest / search / eval / review / vendor discipline | llmwiki skills |
@@ -65,8 +65,12 @@ sources:
 One-paragraph answer to "what do I do", up top. Then detail. Link neighbours
 in prose: see [the ownership rules][ownership].
 
-[ownership]: ownership.md
+[ownership]: /llmwiki/stack/pms/ownership.md
 ```
+
+`$schema` is the one path in a page that stays relative: it is a JSON Schema
+reference resolved by editors and validators, not a markdown link, and
+`/`-prefixed schema URIs are not reliably resolved by that tooling.
 
 Required frontmatter: `type`, `title`, `description`, `sources`. `tags` is
 optional. There is no `updated:` field — when a page last changed comes from
@@ -76,6 +80,10 @@ optional. There is no `updated:` field — when a page last changed comes from
 code path, a database collection, a config file, or a genuinely external URL.
 Never another page in the bundle — link that in the body instead. Never a
 GitHub URL for code in the same repository — use the repo-relative path.
+
+`sources:` entries are identifiers, not links, so they take the bare
+repo-relative form (`src/pms/runtime.ts`) rather than the leading-slash form
+that body links use (§3.3). Nothing resolves or rewrites them (§7.5).
 
 Page types are OKF's. llmwiki uses `topic` (answers one question — the default)
 and `meta` (about the bundle itself; lives in `_meta/`).
@@ -89,37 +97,64 @@ carry **no frontmatter**, except that the bundle root's `index.md` may declare
 ```markdown
 # Section title
 
-* [Child title](child.md) - one-line description from the child's frontmatter
-* [Subdirectory](subdir/index.md) - one-line description
+* [Child title](/llmwiki/data/child.md) - one-line description from the child's frontmatter
+* [Subdirectory](/llmwiki/data/subdir/index.md) - one-line description
 ```
 
-Separator is ` - ` (space-hyphen-space), not an em dash.
+Separator is ` - ` (space-hyphen-space), not an em dash. Index links are
+absolute like every other link (§3.3), which also makes generated indexes
+prefix-swappable during vendoring.
 
 ### 3.3 Links
 
-**Every link in a page body must be reference-style with a relative path.**
+**Every link in a page body must be reference-style with a repo-root-absolute
+path.**
 
 ```markdown
 See [the data router][data-router].
 
-[data-router]: ../data/index.md
+[data-router]: /llmwiki/data/index.md
 ```
 
-No inline `[text](url)` in bodies. No leading-slash paths — GitHub resolves
-those against the domain root and 404s. No `[[wikilinks]]`.
+No inline `[text](url)` in bodies. No relative paths. No `[[wikilinks]]`. No
+GitHub URLs for anything in the same repository.
 
-This is not a style preference. It is load-bearing three times over:
+Two independent rules here, each load-bearing for a different reason.
 
-1. It renders on GitHub, resolves for an agent reading files, and validates
-   with no configuration — the only link form that does all three.
-2. Moving a page breaks its links, and the lint gate catches the break in the
-   same pull request. Fragility plus a gate beats a resilient syntax with no
-   gate.
-3. **It is what makes composition tractable.** Because every link is a
-   `[ref]: path` definition in a page footer, rewriting cross-bundle links
-   during vendoring (§7.3) is a line-level transform, not markdown AST surgery.
+**Absolute, because relative paths cost more than they save.**
 
-Index files use inline links, matching OKF §8.
+1. **One rule an agent cannot get wrong.** Pages are largely agent-authored. A
+   conditional convention — relative within a bundle, absolute across bundles —
+   optimizes better on paper and gets violated in practice. A single invariant
+   is worth more than a better-tuned pair of them.
+2. **Half the move-breakage.** A relative link breaks when *either* end moves;
+   an absolute link breaks only when the *target* moves. With an ingest skill
+   that actively proposes restructuring, that difference is routine, not
+   theoretical. The lint gate still catches what does break.
+3. **It removes the arithmetic from vendoring.** A relative rewrite must
+   recompute each link from its page's depth inside the bundle, giving a
+   different answer per page. An absolute rewrite is a prefix substitution,
+   identical for every page at any depth (§7.4) — and a no-op when producer and
+   consumer roots match.
+4. **It reads.** `/llmwiki/deps/@funarchy/koota-pms/traits.md` states what it
+   points at. `../../../@funarchy/koota-pms/traits.md` requires knowing where
+   you are standing.
+
+Absolute paths resolve against the workspace root in VS Code, for both
+navigation and preview, and are resolved by llmwiki's own linter. The cost is
+that **GitHub's web view cannot follow them** — it resolves a leading slash
+against `github.com`, so page content still renders but click-through 404s. See
+§16 for the risk and the reversal path.
+
+**Reference-style, because it scopes the rewrite.**
+
+Every link lives as a `[ref]: path` definition in a page footer. That confines
+vendoring's prefix substitution to footer lines, so a path mentioned in prose or
+inside a fenced code block is never corrupted by a global replace. It also keeps
+a page's entire outbound link set visible in one auditable block, and keeps
+long paths out of the prose.
+
+Index files use inline links, matching OKF §8, and are also absolute.
 
 ## 4. Bundle identity: no new manifest file
 
@@ -297,7 +332,8 @@ subtrees are re-derived by hoisting (§7.3) rather than copied through.
 Why committed rather than symlinked into `node_modules`:
 
 - Complete on clone, before `npm install` runs.
-- Renders on GitHub, so a human browsing the repository sees the content.
+- Page content renders on GitHub, so a human browsing the repository sees the
+  knowledge — though click-through between pages does not work, per §3.3.
 - No symlink portability problem on Windows.
 - **The repository records exactly what the agent knew when a given pull
   request was written.**
@@ -325,46 +361,45 @@ The consumer hoists every transitive bundle flat into `<root>/deps/<name>/`,
 npm-style. Flat means dependency-to-dependency links resolve as a sibling path
 and identical bundles deduplicate for free.
 
-### 7.4 Cross-bundle link rewriting
+### 7.4 Link rewriting
 
-Hoisting breaks cross-bundle links, and this is the one genuinely hard
-mechanic in the design.
+Vendoring relocates a bundle, so every absolute link inside it must be
+retargeted. Because links are absolute (§3.3), this is a **prefix substitution
+that does not depend on where the page sits in the tree** — the same
+transformation for every page at every depth.
 
-scenepad's page `wiki/pms/runtime.md` (scenepad's root is `wiki/`) contains:
+Say scenepad's bundle root is `wiki/` and the consumer's is `llmwiki/`.
+scenepad's pages land at `llmwiki/deps/@funarchy/scenepad/`, and koota-pms is
+hoisted to `llmwiki/deps/@funarchy/koota-pms/`.
 
-```markdown
-[koota traits]: ../deps/@funarchy/koota-pms/traits.md
-```
+**The rewrite rule.** For each reference definition in a vendored page, match on
+its leading path:
 
-Vendored into a consumer whose root is `llmwiki/`, that page lands at
-`llmwiki/deps/@funarchy/scenepad/pms/runtime.md`, and koota-pms is hoisted to
-`llmwiki/deps/@funarchy/koota-pms/`. The definition must become:
+| Producer's link | Becomes | Case |
+| --- | --- | --- |
+| `/wiki/deps/@funarchy/koota-pms/traits.md` | `/llmwiki/deps/@funarchy/koota-pms/traits.md` | cross-bundle — hoisted flat, not nested |
+| `/wiki/vendor/react-native/hooks.md` | `/llmwiki/deps/@funarchy/scenepad/vendor/…` — **rejected** | a producer's synthesis is not vendored (§7.2); reported as a broken upstream link |
+| `/wiki/pms/traits.md` | `/llmwiki/deps/@funarchy/scenepad/pms/traits.md` | the producer's own pages |
+| `/src/pms/runtime.ts` | unchanged, warning | outside the producer's bundle root; should have been a `sources:` entry, not a body link |
 
-```markdown
-[koota traits]: ../../../@funarchy/koota-pms/traits.md
-```
+So: a path continuing into the producer's `deps/` maps to the consumer's
+`deps/` (flat hoisting), and any other path inside the producer's root gains the
+`deps/<name>/` segment. Two cases, both string prefix swaps.
 
-**The rewrite rule.** For each reference definition in a vendored page, resolve
-it against the producer's tree:
+**When producer and consumer roots match — the default, since both use
+`llmwiki/` — case 1 is a no-op** and only case 3 does any work.
 
-- Resolves **inside the producer's own pages** → unchanged. Relative paths
-  within a bundle survive copying untouched.
-- Resolves inside the producer's **`deps/` or `vendor/`** → retarget to the
-  consumer's corresponding root, recomputing the relative path from the
-  vendored page's new location.
-- Resolves **outside the producer's bundle root entirely** (for example
-  `../../src/foo.ts`) → cannot resolve in the consumer. Left as written and
-  reported as a warning at vendor time. Such a reference should have been a
-  `sources:` entry, not a body link.
+Note this rewrites *every* link in a vendored page, not only cross-bundle ones,
+because a producer's intra-bundle links are absolute too. More lines change than
+a relative scheme would touch, with a far simpler and more testable transform.
+Reference-style syntax is what keeps the substitution confined to footer lines,
+so a path appearing in prose or a code fence is never touched (§3.3).
 
-Because reference definitions are one per line in page footers, this is a
-line-level transform. Nothing parses a markdown AST.
-
-Alternatives rejected: a custom `okf:` link scheme (breaks GitHub rendering and
-link validation, which is the constraint that makes the format work at all);
-symlink shims inside vendored bundles (reintroduces the portability problem);
-forbidding cross-bundle links in publishable bundles (simplest, but scenepad
-genuinely depends on koota-pms knowledge and losing that link is a real loss).
+Alternatives rejected: a custom `okf:` link scheme (breaks VS Code navigation
+and every standard tool, for no gain over repo-root-absolute); symlink shims
+inside vendored bundles (reintroduces the portability problem); forbidding
+cross-bundle links in publishable bundles (simplest, but scenepad genuinely
+depends on koota-pms knowledge and losing that link is a real loss).
 
 **Consequence: vendored bytes are not identical to upstream bytes.** So
 `upstreamHash` covers the producer's content and the rewrite is deterministic
@@ -487,15 +522,22 @@ composition.
 | 1 | Filenames are `kebab-case.md` | existing |
 | 2 | Required frontmatter present, `type` valid, `sources` non-empty | existing |
 | 3 | `index.md` has no frontmatter, except `okf_version` at the bundle root | existing |
-| 4 | Every relative link resolves | existing |
+| 4 | Every link resolves, against the repository root | existing |
 | 5 | No orphan pages — every page reachable from an `index.md` | existing |
 | 6 | Every directory has an `index.md` | existing |
 | 7 | Body links are reference-style — no inline `[text](url)` | from review skill |
-| 8 | No leading-slash paths; no GitHub URLs for in-repo code | from review skill |
+| 8 | Body link paths are repo-root-absolute — no relative paths; no GitHub URLs for in-repo code | from review skill |
 | 9 | Vendored bundles match the lock: hash the producer's content, re-derive the rewrite, compare | new |
 | 10 | Generated `deps/index.md` and `vendor/index.md` are current | new |
 | 11 | Root `index.md` links `deps/` and `vendor/` when they exist | new |
 | 12 | Installed skills match the CLI's version — **warning, not error** | new |
+
+Checks 4, 7 and 8 are llmwiki's own, not delegated:
+`remark-validate-links` [does not support root-relative
+links](https://github.com/remarkjs/remark-validate-links/issues/57), so it is
+not a dependency. That is a simplification rather than a loss — the linter
+already had to own eleven checks remark cannot express, and §14 gives link
+semantics a single owner.
 
 External URL liveness is **not** part of `lint` and llmwiki does not ship it:
 it is slow, network-dependent, and would make a pre-commit hook unusable.
@@ -578,13 +620,17 @@ Page   { path, frontmatter, body, links }
 
 Four seams carry the design:
 
-- **`md/links.ts`** — the only module that knows link syntax. Lint checks 7–8
-  and the vendor rewriter both consume it, so "what is a link" has exactly one
-  owner. Given §3.3, this is the highest-leverage file in the codebase.
+- **`md/links.ts`** — the only module that knows link syntax and path
+  resolution. Lint checks 4, 7 and 8 and the vendor rewriter all consume it, so
+  "what is a link and where does it point" has exactly one owner. With
+  `remark-validate-links` out of the picture (§11) this is the highest-leverage
+  file in the codebase, and the one place a future absolute→relative conversion
+  (§16) would live.
 - **`resolve/graph.ts`** — `(declaredDeps, resolverResults) → flatBundleList |
   ConflictError | CycleError`. No filesystem, no network, so §8 is a unit test.
-- **`vendor/rewrite.ts`** — `(content, fromBundle, targetRoot, bundleMap) →
-  content`. Deterministic by contract, because lint check 9 re-derives it.
+- **`vendor/rewrite.ts`** — `(content, producerRoot, consumerRoot, bundleName) →
+  content`. A prefix substitution over footer definitions, independent of page
+  depth (§7.4). Deterministic by contract, because lint check 9 re-derives it.
 - **`lint/checks/*.ts`** — each check is `(tree) => Issue[]`. Twelve small
   files rather than one script, so adding a check cannot break an existing one.
 
@@ -616,8 +662,11 @@ that failing that it is rewritten from scratch. This is that rewrite.
 Test-driven. The purity above is what makes that cheap rather than ceremonial.
 
 - **Unit** — graph resolution (flat hoist, deduplication, version conflict,
-  cycle), link rewriting across all three cases in §7.4, each lint check,
-  frontmatter round-tripping. All in memory.
+  cycle), link rewriting across every case in §7.4's table plus the
+  matching-roots no-op, each lint check, frontmatter round-tripping. All in
+  memory. Rewriting is also a property test: applying it to pages at differing
+  depths must produce the same prefix mapping, which is the invariant that
+  justified going absolute.
 - **Fixtures** — `test/fixtures/` holds small real trees: a consumer, a
   dependency, a dependency with its own dependency, a conflicting pair, a
   cyclic pair, and a producer using a non-default bundle root name.
@@ -655,6 +704,28 @@ something real to navigate.
 5. **Lint runs on every commit.** Fine at futuramath's 210 pages. A
    synchronous filesystem walk over several thousand pages plus vendored trees
    would need attention. Not a v1 concern; recorded so it is not a surprise.
+6. **GitHub click-through is broken by absolute links** (§3.3). Page content
+   renders; navigating between pages 404s. This costs most with an outsider
+   evaluating the product on github.com, for something whose pitch includes
+   "humans read and maintain it too."
+
+   **This is not a one-way door.** `path.relative(dirname(page), target)` is a
+   deterministic conversion, so absolute→relative is a single codemod living in
+   `md/links.ts` if GitHub rendering ever outranks the four benefits in §3.3.
+   Recording the reversal path is part of accepting the risk.
+7. **VS Code resolves absolute paths against the *workspace* root, not the
+   repository root.** Opening a parent directory as the workspace, or a
+   multi-root workspace, breaks navigation
+   ([vscode#120754](https://github.com/microsoft/vscode/issues/120754)). There
+   is also a quirk where SKILL.md language mode flags such links as not found
+   even though navigation and preview resolve them
+   ([vscode#299488](https://github.com/microsoft/vscode/issues/299488)).
+   Documentation is the only mitigation.
+8. **A bundle-containing repository used as a git submodule breaks**, because
+   `/` becomes the outer repository's root. Relative paths would survive this.
+   Mostly a non-case by design — a submoduled bundle should be consumed as a
+   `path:` dependency rather than read in place — but futuramath does use
+   submodules, so it is worth knowing.
 
 ## 17. Non-goals for v1
 
@@ -681,9 +752,12 @@ commit to hosting before anyone needs it.
 - **Vendored, committed, hash-locked.** Complete on clone, renders on GitHub,
   Windows-safe, and it makes an agent's knowledge auditable per pull request —
   which is the product's core claim.
-- **Reference-style relative links only.** The only form that renders on
-  GitHub, resolves for an agent, validates without configuration, and reduces
-  cross-bundle rewriting to a line-level transform.
+- **Reference-style, repo-root-absolute links.** Absolute because it is one
+  rule an agent cannot get wrong, halves move-breakage, and turns vendoring's
+  rewrite from per-page arithmetic into a depth-independent prefix swap. The
+  price is GitHub click-through, paid knowingly and reversible by codemod.
+  Reference-style because it confines that rewrite to footer lines, so prose and
+  code fences are never corrupted.
 - **Flat hoisting, hard failure on conflict.** Flat keeps cross-bundle links
   resolvable and deduplicates for free. Two versions of the same knowledge in
   one tree is worse than a failed install, because an agent will silently pick
