@@ -47,6 +47,26 @@ Tests mirror `src/` under `test/`, plus `test/fixtures/` for on-disk bundle tree
 
 ---
 
+## Execution amendments
+
+Beyond the corrections already folded into the task bodies below, four smaller
+changes were made during execution. They are recorded here rather than inline
+because none of them changes behaviour a re-executor could get wrong by copying
+the surrounding code:
+
+- **`parseGitHubSlug` tolerates a trailing slash** (`src/git.ts`). The `$`-anchored
+  regex returned `null` for `https://github.com/owner/repo/`, which would have
+  silently disabled check 8's in-repo detection. Now `(?:\.git)?\/*$` on a trimmed
+  remote.
+- **Check 7's message says "inline link or image"**, since images are deliberately
+  ordinary links and the old wording left an `![alt](…)` finding unexplained.
+- **The orphans message names the likely cause**: "…if an index does link to it,
+  check that link is repo-root-absolute". Reachability only follows absolute hrefs,
+  so a relative link in an index orphans its child while check 8 reports the link —
+  two issues on two files, previously with nothing connecting them.
+- **`pageDirectory(page)` extracted** in `src/bundle/load.ts` and used by both
+  `pageDirectories` and check 6, which had been recomputing the same slice.
+
 ## Spec clarifications this plan settles
 
 1. **`_meta/` is excluded from every page-format check.** It holds `page.schema.json` and eval cases, whose frontmatter (`question`, `status`) is not concept-page frontmatter. `gaps` reads `_meta/eval/` directly rather than through the bundle model. Check 6 also skips it.
@@ -2164,14 +2184,39 @@ Expected: FAIL — cannot resolve the check module.
 
 - [ ] **Step 3: Write `src/lint/checks/links-resolve.ts`**
 
+**Existence must be case-exact.** macOS and Windows are case-insensitive but
+case-preserving, so `existsSync` accepts a link to `/llmwiki/mongo.md` when the
+file is really `Mongo.md` — verified — and the bundle then fails only on a
+case-sensitive CI checkout. A lint gate that goes green before push and red after
+is worse than none, so membership is tested against the real directory entry.
+`existsSync` is still called first, because it is what reports a page linking to a
+dangling symlink, where the entry exists but the target does not.
+
 ```ts
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
+import { basename, dirname } from 'node:path';
 import { isExternal, isRepoAbsolute, resolveRepoAbsolute } from '../../md/links.js';
 import type { Check } from '../run.js';
 import type { Issue } from '../../types.js';
 
 export const linksResolve: Check = (ctx) => {
   const issues: Issue[] = [];
+
+  // Directory listings, memoized per run. `readdirSync` returns real, case-preserved
+  // names, so membership is case-exact where `existsSync` is not.
+  const entriesByDir = new Map<string, Set<string>>();
+  const entriesOf = (dir: string): Set<string> => {
+    let entries = entriesByDir.get(dir);
+    if (!entries) {
+      try {
+        entries = new Set(readdirSync(dir));
+      } catch {
+        entries = new Set();
+      }
+      entriesByDir.set(dir, entries);
+    }
+    return entries;
+  };
 
   for (const page of ctx.bundle.pages) {
     for (const link of page.links) {
@@ -2192,6 +2237,8 @@ export const linksResolve: Check = (ctx) => {
         continue;
       }
 
+      // `existsSync` first: it is false for a dangling symlink, where the directory
+      // entry exists but the target does not.
       if (!existsSync(target)) {
         issues.push({
           file: page.repoPath,
@@ -2199,6 +2246,22 @@ export const linksResolve: Check = (ctx) => {
           check: 'links-resolve',
           severity: 'error',
           message: `broken link: ${link.href}`,
+        });
+        continue;
+      }
+
+      const name = basename(target);
+      const entries = entriesOf(dirname(target));
+      if (!entries.has(name)) {
+        const actual = [...entries].find((e) => e.toLowerCase() === name.toLowerCase());
+        issues.push({
+          file: page.repoPath,
+          line: link.line,
+          check: 'links-resolve',
+          severity: 'error',
+          message: actual
+            ? `link case does not match the file on disk: ${link.href} (found ${actual})`
+            : `broken link: ${link.href}`,
         });
       }
     }
@@ -2747,7 +2810,10 @@ export const linkAbsolute: Check = (ctx) => {
 
       if (isExternal(link.href)) {
         if (ownSlug) {
-          const match = /^https?:\/\/github\.com\/([^/]+\/[^/]+)\/(?:blob|tree)\//.exec(link.href);
+          // blob, tree and raw name file content. `commit`, `pull` and `issues`
+          // reference history or discussion, and the bare homepage is ordinary
+          // prose — all deliberately left alone (design spec §3.3).
+          const match = /^https?:\/\/github\.com\/([^/]+\/[^/]+)\/(?:blob|tree|raw)\//.exec(link.href);
           if (match && match[1] === ownSlug) {
             issues.push({
               file: page.repoPath,
