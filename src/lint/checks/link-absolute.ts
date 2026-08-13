@@ -13,7 +13,7 @@ export const linkAbsolute: Check = (ctx) => {
 
       if (isExternal(link.href)) {
         if (ownSlug) {
-          const match = /^https?:\/\/github\.com\/([^/]+\/[^/]+)\/(?:blob|tree)\//.exec(link.href);
+          const match = /^https?:\/\/github\.com\/([^/]+\/[^/]+)\/(?:blob|tree|raw)\//.exec(link.href);
           if (match && match[1] === ownSlug) {
             issues.push({
               file: page.repoPath,

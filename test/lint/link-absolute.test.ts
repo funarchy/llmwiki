@@ -98,4 +98,31 @@ describe('check: link-absolute', () => {
     });
     expect(linkAbsolute(contextFor(root))).toHaveLength(1);
   });
+
+  it('flags a raw URL for this repository', () => {
+    const root = makeRepo({
+      ...base,
+      'llmwiki/mongo.md': page(
+        'Mongo',
+        '\nSee [a][a].\n\n[a]: https://github.com/funarchy/llmwiki/raw/main/src/cli.ts\n',
+      ),
+    });
+    expect(linkAbsolute(contextFor(root, 'git@github.com:funarchy/llmwiki.git'))).toHaveLength(1);
+  });
+
+  it('leaves the repository homepage alone', () => {
+    const root = makeRepo({
+      ...base,
+      'llmwiki/mongo.md': page('Mongo', '\nSee [a][a].\n\n[a]: https://github.com/funarchy/llmwiki\n'),
+    });
+    expect(linkAbsolute(contextFor(root, 'git@github.com:funarchy/llmwiki.git'))).toEqual([]);
+  });
+
+  it('leaves a pull request URL alone', () => {
+    const root = makeRepo({
+      ...base,
+      'llmwiki/mongo.md': page('Mongo', '\nSee [a][a].\n\n[a]: https://github.com/funarchy/llmwiki/pull/7\n'),
+    });
+    expect(linkAbsolute(contextFor(root, 'git@github.com:funarchy/llmwiki.git'))).toEqual([]);
+  });
 });

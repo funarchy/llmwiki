@@ -42,7 +42,8 @@ export const orphans: Check = (ctx) => {
       file: page.repoPath,
       check: 'orphans',
       severity: 'error',
-      message: 'orphan — not reachable by following index.md links from the bundle root',
+      message:
+        'orphan — not reachable by following index.md links from the bundle root; if an index does link to it, check that link is repo-root-absolute',
     });
   }
 

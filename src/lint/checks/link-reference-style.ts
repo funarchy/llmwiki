@@ -15,7 +15,7 @@ export const linkReferenceStyle: Check = (ctx) => {
         line: link.line,
         check: 'link-reference-style',
         severity: 'error',
-        message: `inline link \`${link.href}\` — use a reference definition in the page footer instead`,
+        message: `inline link or image \`${link.href}\` — use a reference definition in the page footer instead`,
       });
     }
   }

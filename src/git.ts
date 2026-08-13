@@ -16,6 +16,7 @@ export function gitRemote(repoRoot: string): string | null {
 /** `owner/repo` for a GitHub remote, else null. */
 export function parseGitHubSlug(remote: string | null): string | null {
   if (!remote) return null;
-  const match = /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?$/.exec(remote);
+  // Trailing slashes defeat the `$` anchor, and would silently disable check 8.
+  const match = /github\.com[:/]([^/]+)\/([^/]+?)(?:\.git)?\/*$/.exec(remote.trim());
   return match ? `${match[1]}/${match[2]}` : null;
 }

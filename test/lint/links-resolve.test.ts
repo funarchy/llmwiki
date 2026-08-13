@@ -93,4 +93,16 @@ describe('check: links-resolve', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0].file).toBe('llmwiki/index.md');
   });
+
+  it('flags a link whose case does not match the file on disk', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n\n* [Mongo](/llmwiki/mongo.md) - mongo\n',
+      'llmwiki/Mongo.md': page('Mongo'),
+    });
+    const issues = linksResolve(contextFor(root));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toMatch(/case does not match/);
+    expect(issues[0].message).toMatch(/Mongo\.md/);
+  });
 });

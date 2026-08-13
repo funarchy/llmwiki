@@ -18,4 +18,8 @@ describe('parseGitHubSlug', () => {
   it('returns null for null input', () => {
     expect(parseGitHubSlug(null)).toBeNull();
   });
+
+  it('tolerates a trailing slash', () => {
+    expect(parseGitHubSlug('https://github.com/funarchy/llmwiki/')).toBe('funarchy/llmwiki');
+  });
 });

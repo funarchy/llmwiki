@@ -76,11 +76,12 @@ export function isConceptPage(page: Page, bundle: Bundle): boolean {
   return true;
 }
 
+/** The directory a page sits in, as a repo-relative path. */
+export function pageDirectory(page: Page): string {
+  return page.repoPath.split('/').slice(0, -1).join('/');
+}
+
 /** Every directory that contains at least one loaded page, as repo-relative paths. */
 export function pageDirectories(bundle: Bundle): string[] {
-  const dirs = new Set<string>();
-  for (const page of bundle.pages) {
-    dirs.add(page.repoPath.split('/').slice(0, -1).join('/'));
-  }
-  return [...dirs].sort();
+  return [...new Set(bundle.pages.map(pageDirectory))].sort();
 }
