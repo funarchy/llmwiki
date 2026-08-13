@@ -1595,6 +1595,17 @@ export const CHECKS: Array<{ id: string; run: Check }> = [];
 export function registerCheck(id: string, run: Check): void {
   CHECKS.push({ id, run });
 }
+```
+
+`registerCheck` has no idempotence guard, deliberately. Probed during execution:
+re-importing the same specifier returns the cached module so registration happens
+once, and vitest's per-file isolation gives each test file a fresh `CHECKS`. The
+one way to break it is importing a check module under **two different specifier
+strings** that resolve to distinct instances — so every check must be imported by
+the same relative `.js` path everywhere. Task 14's order assertion is what would
+catch a violation, far from its cause.
+
+```ts
 
 export function runLint(ctx: LintContext): Issue[] {
   return CHECKS.flatMap(({ run }) => run(ctx));
