@@ -15,4 +15,10 @@ describe('templates', () => {
     expect(content).toContain('{{BUNDLE_TITLE}}');
     expect(content).toContain("okf_version: '0.2'");
   });
+
+  it('pre-commit.sh guards against llmwiki not being installed before gating the commit', () => {
+    const content = readFileSync(join(packageRoot(), 'templates', 'pre-commit.sh'), 'utf-8');
+    expect(content).toContain('--no-install llmwiki --help');
+    expect(content).toContain('exec npx --no-install llmwiki lint');
+  });
 });

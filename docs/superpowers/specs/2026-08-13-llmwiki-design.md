@@ -464,11 +464,18 @@ comparing vendored bytes to a stored hash of the result.
 ### 7.5 Vendored `sources:` are not locally verifiable
 
 A vendored scenepad page citing `src/pms/runtime.ts` means *scenepad's*
-repository root. Lint skips source-path checks under `deps/**` and `vendor/**`,
-and the generated `deps/index.md` states the convention.
+repository root, not the consumer's.
 
-These are deliberately **not** rewritten. Rewriting would make them look
-verifiable in the consumer when they are not.
+v1 does not verify that `sources:` paths resolve anywhere — entries are
+identifiers, and legitimate ones include database URIs (`mongo://collections`)
+and external URLs alongside repo paths. Check 2 verifies only that `sources:` is
+present and non-empty. Should a future staleness check compare a page against
+its sources, it must skip `deps/**` and `vendor/**`, where the paths belong to
+another repository.
+
+Vendored source paths are deliberately **not** rewritten. Rewriting would make
+them look verifiable in the consumer when they are not. The generated
+`deps/index.md` states the convention instead.
 
 ### 7.6 Generated index files
 
