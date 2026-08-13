@@ -1,7 +1,8 @@
 # llmwiki — design
 
 **Date:** 2026-08-13
-**Status:** approved design, not yet implemented
+**Status:** approved. Plan 1 (bundle core, lint, `init`/`lint`/`gaps`) is
+implemented; the composition layer (plan 2) and skillset (plan 3) are not.
 
 ## 1. What llmwiki is
 
@@ -86,7 +87,15 @@ repo-relative form (`src/pms/runtime.ts`) rather than the leading-slash form
 that body links use (§3.3). Nothing resolves or rewrites them (§7.5).
 
 Page types are OKF's. llmwiki uses `topic` (answers one question — the default)
-and `meta` (about the bundle itself; lives in `_meta/`).
+and `meta` (about the bundle itself).
+
+A `meta` page lives anywhere the loader walks — typically the bundle root — and
+is an ordinary concept page in every other respect, held to the same schema.
+It specifically does **not** live in `_meta/`. That directory holds tooling
+only: the page schema, and eval cases whose frontmatter (`question`, `status`)
+is not concept-page frontmatter at all. The loader therefore excludes `_meta/`
+outright, so a `meta` page placed there would not be rejected — it would be
+invisible to every check, which is worse.
 
 ### 3.2 Index files
 
@@ -116,8 +125,22 @@ See [the data router][data-router].
 [data-router]: /llmwiki/data/index.md
 ```
 
-No inline `[text](url)` in bodies. No relative paths. No `[[wikilinks]]`. No
-GitHub URLs for anything in the same repository.
+No inline `[text](url)` in bodies. No relative paths. No `[[wikilinks]]`.
+
+**No GitHub URL that references file content in the same repository** — a
+`/blob/`, `/tree/` or `/raw/` URL naming this repo must be a repo-root-absolute
+path instead, since it points at something the repository already contains and a
+full URL pins it to a branch. Other GitHub URLs for the same repo are left alone
+on purpose: the repository homepage is ordinary prose, and `/commit/`, `/pull/`
+and `/issues/` reference history or discussion rather than current file content,
+which is not what this rule is about.
+
+**Links are matched case-exactly**, even where the filesystem is not. macOS and
+Windows are case-insensitive but case-preserving, so a link to `/llmwiki/mongo.md`
+that actually names `Mongo.md` resolves locally and breaks on a case-sensitive CI
+checkout. A lint gate that passes before push and fails after is worse than no
+gate, so existence is confirmed against the real directory entry rather than by
+asking the filesystem whether the path resolves.
 
 Two independent rules here, each load-bearing for a different reason.
 
@@ -155,6 +178,39 @@ a page's entire outbound link set visible in one auditable block, and keeps
 long paths out of the prose.
 
 Index files use inline links, matching OKF §8, and are also absolute.
+
+**Images are links, with no exception.** `![alt][diagram]` plus a footer
+`[diagram]: /llmwiki/img/diagram.png`, never `![alt](/llmwiki/img/diagram.png)`.
+This is not consistency for its own sake — it is what keeps §7.4 correct. The
+vendoring rewrite is deliberately confined to footer reference definitions, so an
+inline image path would survive vendoring unretargeted and break silently in
+every consumer, surfacing later as a generic broken link rather than as the
+un-rewritten path it is. Requiring the reference form keeps images inside the one
+mechanism that gets rewritten, and keeps §3.3's single invariant single.
+
+Three known limitations of the link scanner, accepted rather than solved. An
+**unclosed** code fence is not treated as code, so link-shaped text after it is
+scanned as prose. A reference definition indented four or more spaces is ignored,
+since at that indentation CommonMark reads it as an indented code block anyway.
+And a fence containing a **nested fence of the same style** closes early on the
+inner delimiter, so links in the outer block can leak — the scanner does not
+implement CommonMark's rule that a closing fence must be at least as long as its
+opening, which means the usual author workaround of a longer outer fence does not
+help either. That last one is the fence-length rule, and implementing it is the
+known fix should meta-documentation about fenced blocks ever make it bite.
+
+None of the three is worth a full CommonMark parser for a corpus this project's
+own tooling writes.
+
+**Path resolution is clamped lexically, deliberately not by `realpath`.** A
+repo-root-absolute href that resolves outside the bundle root is rejected, which
+is a correctness rule before it is a safety one: `/../../etc/passwd` resolves to a
+real file on most hosts, and a linter that merely tested existence would call that
+a working link. But the clamp compares resolved *lexical* paths only. Resolving
+symlinks would reject a legitimate case — `mode: link` (§7.2) vendors dependency
+trees as symlinks on purpose, so an href pointing through one to content elsewhere
+on disk is the intended behaviour, not an escape. Anyone tempted to "harden" this
+to `realpath` would break link mode.
 
 ## 4. Bundle identity: no new manifest file
 
@@ -409,11 +465,18 @@ comparing vendored bytes to a stored hash of the result.
 ### 7.5 Vendored `sources:` are not locally verifiable
 
 A vendored scenepad page citing `src/pms/runtime.ts` means *scenepad's*
-repository root. Lint skips source-path checks under `deps/**` and `vendor/**`,
-and the generated `deps/index.md` states the convention.
+repository root, not the consumer's.
 
-These are deliberately **not** rewritten. Rewriting would make them look
-verifiable in the consumer when they are not.
+v1 does not verify that `sources:` paths resolve anywhere — entries are
+identifiers, and legitimate ones include database URIs (`mongo://collections`)
+and external URLs alongside repo paths. Check 2 verifies only that `sources:` is
+present and non-empty. Should a future staleness check compare a page against
+its sources, it must skip `deps/**` and `vendor/**`, where the paths belong to
+another repository.
+
+Vendored source paths are deliberately **not** rewritten. Rewriting would make
+them look verifiable in the consumer when they are not. The generated
+`deps/index.md` states the convention instead.
 
 ### 7.6 Generated index files
 

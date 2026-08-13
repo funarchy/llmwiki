@@ -47,11 +47,34 @@ Tests mirror `src/` under `test/`, plus `test/fixtures/` for on-disk bundle tree
 
 ---
 
+## Execution amendments
+
+Beyond the corrections already folded into the task bodies below, four smaller
+changes were made during execution. They are recorded here rather than inline
+because none of them changes behaviour a re-executor could get wrong by copying
+the surrounding code:
+
+- **`parseGitHubSlug` tolerates a trailing slash** (`src/git.ts`). The `$`-anchored
+  regex returned `null` for `https://github.com/owner/repo/`, which would have
+  silently disabled check 8's in-repo detection. Now `(?:\.git)?\/*$` on a trimmed
+  remote.
+- **Check 7's message says "inline link or image"**, since images are deliberately
+  ordinary links and the old wording left an `![alt](…)` finding unexplained.
+- **The orphans message briefly named relative links as a likely cause, then
+  reverted.** The hint was correct while reachability followed only absolute hrefs.
+  Once `targetOf` began resolving relative links (Task 10, after the real-corpus
+  run), the hint pointed at a cause that can no longer produce an orphan, so it was
+  removed rather than left to mislead.
+- **`pageDirectory(page)` extracted** in `src/bundle/load.ts` and used by both
+  `pageDirectories` and check 6, which had been recomputing the same slice.
+
 ## Spec clarifications this plan settles
 
 1. **`_meta/` is excluded from every page-format check.** It holds `page.schema.json` and eval cases, whose frontmatter (`question`, `status`) is not concept-page frontmatter. `gaps` reads `_meta/eval/` directly rather than through the bundle model. Check 6 also skips it.
+
+   **`_meta/` is tooling-only — `type: meta` pages do not live there.** The page schema permits `type: meta` because that is OKF's own vocabulary, and dropping it would make llmwiki reject a page type the spec it implements considers valid. But because the loader excludes `_meta/` outright, a meta page placed there is not rejected — it is invisible to every check. Design spec §3.1 therefore locates meta pages anywhere the loader walks, typically the bundle root, as ordinary concept pages.
 2. **Repo root is the directory containing `llmwiki.yaml`**, located by walking up from the current directory. No git dependency, and link resolution is therefore unaffected by the submodule caveat in §16.8.
-3. **`README.md` at the bundle root is exempt** from concept-page checks, so a human-facing readme can live in the bundle without frontmatter.
+3. **`README.md` at the bundle root is exempt** from concept-page checks, so a human-facing readme can live in the bundle without frontmatter. **The exemption is depth-limited on purpose.** A bundle holds exactly two kinds of file — `index.md` routers and concept pages — with one narrow exception at the front door, mirroring the universal top-level-README convention. A subdirectory already has its human and navigational entry point in its `index.md`, so a second non-conformant file there is precisely the drift the linter exists to catch. Users who reflexively drop a README into a subdirectory will be surprised; that surprise is the check working.
 
 Two deliberate deviations from §15's testing plan:
 
@@ -63,7 +86,7 @@ Two deliberate deviations from §15's testing plan:
 ### Task 1: Project scaffold
 
 **Files:**
-- Create: `package.json`, `tsconfig.json`, `vitest.config.ts`, `.gitignore`
+- Create: `package.json`, `tsconfig.json`, `tsconfig.test.json`, `vitest.config.ts`, `.gitignore`
 - Create: `src/types.ts`, `src/paths.ts`
 - Test: `test/paths.test.ts`
 
@@ -92,12 +115,18 @@ Replace the `scripts` block and add `bin`/`files`/`engines` in `package.json`:
   "engines": { "node": ">=20" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest"
   }
 }
 ```
+
+`typecheck` deliberately points at `tsconfig.test.json`, which covers `src/`
+**and** `test/`. `build` stays on `tsconfig.json` so only `src/` is emitted into
+`dist/`. Without this split, test files are never typechecked by anything —
+vitest is esbuild-based and strips types without checking them, so a fixture
+literal that does not satisfy `Page` or `Config` would pass silently.
 
 - [ ] **Step 3: Write `tsconfig.json`**
 
@@ -121,6 +150,25 @@ Replace the `scripts` block and add `bin`/`files`/`engines` in `package.json`:
 ```
 
 ESM with NodeNext means every relative import must carry a `.js` extension, including in `.ts` sources. All code in this plan follows that.
+
+TypeScript 7 does not auto-discover `@types/node`, so add `"types": ["node"]` to `compilerOptions` with a comment noting that any future `@types/*` package shipping globals must be listed there too. tsconfig files are JSONC, so comments are valid.
+
+- [ ] **Step 3b: Write `tsconfig.test.json`**
+
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}
+```
+
+The `rootDir: "."` override is required: the base config sets `rootDir: "src"`, and including `test/` under that fails with "not under rootDir".
+
+Verify the setup works by writing a temporary test file containing `const x: number = "not a number";`, confirming `npm run typecheck` **fails** on it, then deleting it and confirming typecheck passes. Do not commit the temporary file.
 
 - [ ] **Step 4: Write `vitest.config.ts`**
 
@@ -277,9 +325,16 @@ git commit -m "feat: scaffold llmwiki package with shared types"
 
 **Files:**
 - Create: `src/md/frontmatter.ts`
+- Modify: `src/types.ts` (add `FrontmatterState`, add `frontmatterState` to `Page`)
 - Test: `test/md/frontmatter.test.ts`
 
 `bodyStartLine` is the reason this returns a struct rather than a tuple: link line numbers must map back to real file lines, so the body's offset has to travel with it.
+
+**Two things this module must get right, both found by review during execution:**
+
+1. **Normalize CRLF to LF before splitting.** `content.split('\n')` leaves each line's `\r` attached. Interior frontmatter lines rejoin into valid CRLF pairs, but the last line before the closing delimiter ends up with an orphan `\r` — and YAML 1.2 does not treat a bare `\r` as a line break, so it becomes part of that scalar. Verified against yaml 2.9.0: a CRLF file yields `{ type: 'topic', title: 'Mongo\r' }`. That passes a `minLength` schema check while carrying an invisible control character. Normalizing does not disturb `bodyStartLine`, because replacing `\r\n` with `\n` leaves the line count unchanged.
+
+2. **Report *why* there is no frontmatter, not just that there isn't.** A single `null` cannot distinguish "no block at all" from "a block whose YAML failed to parse." Check 3 (Task 8) treats absent frontmatter on an `index.md` as the passing state, so conflating the two lets an index file with a malformed block carrying real metadata slip past the very check meant to catch it. Hence the `FrontmatterState` discriminant.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -290,8 +345,9 @@ import { describe, it, expect } from 'vitest';
 import { parseFrontmatter } from '../../src/md/frontmatter.js';
 
 describe('parseFrontmatter', () => {
-  it('returns null frontmatter when the file does not open with a delimiter', () => {
+  it('reports absent when the file does not open with a delimiter', () => {
     const result = parseFrontmatter('# Title\n\nBody text.\n');
+    expect(result.state).toBe('absent');
     expect(result.frontmatter).toBeNull();
     expect(result.body).toBe('# Title\n\nBody text.\n');
     expect(result.bodyStartLine).toBe(1);
@@ -300,26 +356,38 @@ describe('parseFrontmatter', () => {
   it('parses frontmatter and reports where the body starts', () => {
     const content = ['---', 'type: topic', 'title: Mongo', '---', '', 'Body.', ''].join('\n');
     const result = parseFrontmatter(content);
+    expect(result.state).toBe('parsed');
     expect(result.frontmatter).toEqual({ type: 'topic', title: 'Mongo' });
     expect(result.body).toBe('\nBody.\n');
     expect(result.bodyStartLine).toBe(5);
   });
 
-  it('treats an unterminated frontmatter block as no frontmatter', () => {
+  it('reports absent for an unterminated frontmatter block', () => {
     const result = parseFrontmatter('---\ntype: topic\n\nBody.\n');
+    expect(result.state).toBe('absent');
     expect(result.frontmatter).toBeNull();
     expect(result.bodyStartLine).toBe(1);
   });
 
-  it('treats unparseable YAML as no frontmatter', () => {
+  it('reports invalid for a block whose YAML will not parse', () => {
     const content = ['---', 'type: [unclosed', '---', '', 'Body.'].join('\n');
     const result = parseFrontmatter(content);
+    expect(result.state).toBe('invalid');
+    expect(result.frontmatter).toBeNull();
+    expect(result.bodyStartLine).toBe(4);
+  });
+
+  it('reports invalid for a block that parses to something other than a mapping', () => {
+    const content = ['---', '- a', '- b', '---', '', 'Body.'].join('\n');
+    const result = parseFrontmatter(content);
+    expect(result.state).toBe('invalid');
     expect(result.frontmatter).toBeNull();
   });
 
-  it('treats an empty frontmatter block as no frontmatter', () => {
+  it('reports empty for a block that holds nothing', () => {
     const content = ['---', '---', '', 'Body.'].join('\n');
     const result = parseFrontmatter(content);
+    expect(result.state).toBe('empty');
     expect(result.frontmatter).toBeNull();
     expect(result.bodyStartLine).toBe(3);
   });
@@ -329,8 +397,20 @@ describe('parseFrontmatter', () => {
     const result = parseFrontmatter(content);
     expect(result.frontmatter?.sources).toEqual(['src/a.ts', 'src/b.ts']);
   });
+
+  it('does not leak a carriage return into the last frontmatter value on a CRLF file', () => {
+    const content = '---\r\ntype: topic\r\ntitle: Mongo\r\n---\r\n\r\nBody.\r\n';
+    const result = parseFrontmatter(content);
+    expect(result.state).toBe('parsed');
+    expect(result.frontmatter).toEqual({ type: 'topic', title: 'Mongo' });
+    expect(result.body).toBe('\nBody.\n');
+    // Line count is unchanged by normalization, so this still indexes the real file.
+    expect(result.bodyStartLine).toBe(5);
+  });
 });
 ```
+
+The CRLF test is the regression guard for finding 1: without normalization, `title` comes back as `'Mongo\r'` and the assertion fails. The `bodyStartLine` assertion in the `invalid` case pins down that a failed parse still reports the body position correctly — the old implementation returned early with `bodyStartLine: 1` only for `absent`, and it would be easy to regress `invalid` into the same path.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -339,12 +419,37 @@ Expected: FAIL — cannot resolve `../../src/md/frontmatter.js`.
 
 - [ ] **Step 3: Write `src/md/frontmatter.ts`**
 
+First add to `src/types.ts`:
+
+```ts
+/**
+ * What a page's frontmatter delimiter block contained.
+ * - `absent`  — no delimited block: no opening `---`, or it was never closed
+ * - `empty`   — a block was present but held nothing
+ * - `invalid` — a block was present but its YAML would not parse, or was not a mapping
+ * - `parsed`  — a block was present and yielded a mapping
+ */
+export type FrontmatterState = 'absent' | 'empty' | 'invalid' | 'parsed';
+```
+
+and add one member to the existing `Page` interface:
+
+```ts
+  frontmatterState: FrontmatterState;
+```
+
+`FrontmatterState` lives in `types.ts` rather than in `frontmatter.ts` so that `types.ts` stays dependency-free and `Page` can name it.
+
+Then `src/md/frontmatter.ts`:
+
 ```ts
 import { parse } from 'yaml';
-import type { Frontmatter } from '../types.js';
+import type { Frontmatter, FrontmatterState } from '../types.js';
 
 export interface ParsedFile {
+  /** The parsed mapping. Null unless `state` is `parsed`. */
   frontmatter: Frontmatter | null;
+  state: FrontmatterState;
   body: string;
   /** 1-based line number where the body begins. */
   bodyStartLine: number;
@@ -353,11 +458,21 @@ export interface ParsedFile {
 const DELIM = '---';
 
 export function parseFrontmatter(content: string): ParsedFile {
-  const lines = content.split('\n');
+  // Normalize to LF first: otherwise the last frontmatter line keeps an orphan
+  // `\r`, which YAML 1.2 treats as scalar content rather than a line break.
+  // Line count is unchanged, so `bodyStartLine` still indexes the real file.
+  const normalized = content.replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
 
-  if (lines[0]?.trim() !== DELIM) {
-    return { frontmatter: null, body: content, bodyStartLine: 1 };
-  }
+  const absent: ParsedFile = {
+    frontmatter: null,
+    state: 'absent',
+    body: normalized,
+    bodyStartLine: 1,
+  };
+
+  // `.trim()` rather than `===` so a leading BOM or trailing space still matches.
+  if (lines[0]?.trim() !== DELIM) return absent;
 
   let closeIdx = -1;
   for (let i = 1; i < lines.length; i++) {
@@ -366,25 +481,25 @@ export function parseFrontmatter(content: string): ParsedFile {
       break;
     }
   }
-  if (closeIdx === -1) {
-    return { frontmatter: null, body: content, bodyStartLine: 1 };
-  }
+  if (closeIdx === -1) return absent;
 
-  const yamlText = lines.slice(1, closeIdx).join('\n');
   const body = lines.slice(closeIdx + 1).join('\n');
   const bodyStartLine = closeIdx + 2;
 
-  let frontmatter: Frontmatter | null = null;
+  let loaded: unknown;
   try {
-    const loaded = parse(yamlText) as unknown;
-    if (loaded !== null && typeof loaded === 'object' && !Array.isArray(loaded)) {
-      frontmatter = loaded as Frontmatter;
-    }
+    loaded = parse(lines.slice(1, closeIdx).join('\n'));
   } catch {
-    frontmatter = null;
+    return { frontmatter: null, state: 'invalid', body, bodyStartLine };
   }
 
-  return { frontmatter, body, bodyStartLine };
+  if (loaded === null || loaded === undefined) {
+    return { frontmatter: null, state: 'empty', body, bodyStartLine };
+  }
+  if (typeof loaded !== 'object' || Array.isArray(loaded)) {
+    return { frontmatter: null, state: 'invalid', body, bodyStartLine };
+  }
+  return { frontmatter: loaded as Frontmatter, state: 'parsed', body, bodyStartLine };
 }
 ```
 
@@ -470,8 +585,48 @@ describe('extractLinks', () => {
   it('returns an empty list for a body with no links', () => {
     expect(extractLinks('Just prose.\n', 1)).toEqual([]);
   });
+
+  it('ignores links inside a fence indented under a list item', () => {
+    const body = ['- item one', '  ```bash', '  See [x](/not/real.md)', '  ```', '- item two'].join('\n');
+    expect(extractLinks(body, 1)).toEqual([]);
+  });
+
+  it('ignores links inside a tilde fence', () => {
+    const body = ['~~~markdown', '[a]: /llmwiki/x.md', '~~~'].join('\n');
+    expect(extractLinks(body, 1)).toEqual([]);
+  });
+
+  it('finds a reference definition indented up to three spaces', () => {
+    const links = extractLinks('   [a]: /llmwiki/x.md', 1);
+    expect(links).toEqual([
+      { ref: 'a', href: '/llmwiki/x.md', line: 1, style: 'reference-definition' },
+    ]);
+  });
+
+  it('treats an image as a link, so the reference-style rule covers it too', () => {
+    const links = extractLinks('![diagram](/llmwiki/img/d.png)', 2);
+    expect(links).toEqual([
+      { href: '/llmwiki/img/d.png', line: 2, style: 'inline' },
+    ]);
+  });
+});
+
+describe('resolveRepoAbsolute', () => {
+  it('resolves an href inside the repository root', () => {
+    expect(resolveRepoAbsolute('/repo', '/llmwiki/x.md')).toBe(join('/repo', 'llmwiki', 'x.md'));
+  });
+
+  it('returns null for an href that climbs out of the repository root', () => {
+    expect(resolveRepoAbsolute('/repo', '/../../etc/passwd')).toBeNull();
+  });
+
+  it('resolves interior traversal that stays inside the root', () => {
+    expect(resolveRepoAbsolute('/repo', '/llmwiki/../llmwiki/x.md')).toBe(join('/repo', 'llmwiki', 'x.md'));
+  });
 });
 ```
+
+The `stripCode` describe block also gains a tilde case and an indented-fence case. Add `resolveRepoAbsolute` and `join` (from `node:path`) to the test file's imports.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -480,19 +635,29 @@ Expected: FAIL — cannot resolve `../../src/md/links.js`.
 
 - [ ] **Step 3: Write `src/md/links.ts`**
 
+Three regex details are load-bearing, all found by review during execution:
+
+- **Fences must tolerate leading whitespace.** Anchoring at column 0 misses a fence indented under a list item, which is a routine authoring pattern — and for a wiki documenting markdown conventions, those blocks contain deliberately fictitious or deliberately relative example links. Verified: with a column-0 anchor, `See [x](/not/real.md)` inside an indented block survives as prose, so checks 4, 7 and 8 all fire on a code sample.
+- **Tilde fences count too.** They are the natural escape when a block must contain literal triple-backticks, and links inside one leak otherwise.
+- **Reference definitions may be indented up to three spaces** per CommonMark. Missing them is a *false negative* — the link becomes invisible to every check, so a genuinely broken one goes unreported.
+
 ```ts
-import { join } from 'node:path';
+import { resolve, sep } from 'node:path';
 import type { Link } from '../types.js';
 
-const FENCE_RE = /^```[\s\S]*?^```/gm;
+const BACKTICK_FENCE_RE = /^[ \t]*```[\s\S]*?^[ \t]*```/gm;
+const TILDE_FENCE_RE = /^[ \t]*~~~[\s\S]*?^[ \t]*~~~/gm;
 const INLINE_CODE_RE = /`{1,2}[^`\n]*`{1,2}/g;
 const INLINE_LINK_RE = /\[([^\]]*)\]\(\s*([^)\s]+)/g;
-const REF_DEF_RE = /^\[([^\]]+)\]:\s*(\S+)/;
+const REF_DEF_RE = /^ {0,3}\[([^\]]+)\]:\s*(\S+)/;
 
 /** Blank out code so example links are never treated as real, preserving line count. */
 export function stripCode(text: string): string {
   const blank = (m: string) => m.replace(/[^\n]/g, ' ');
-  return text.replace(FENCE_RE, blank).replace(INLINE_CODE_RE, blank);
+  return text
+    .replace(BACKTICK_FENCE_RE, blank)
+    .replace(TILDE_FENCE_RE, blank)
+    .replace(INLINE_CODE_RE, blank);
 }
 
 function stripFragment(href: string): string {
@@ -542,11 +707,33 @@ export function isRepoAbsolute(href: string): boolean {
   return href.startsWith('/');
 }
 
-/** Resolve a repo-root-absolute href to an absolute path on disk. */
-export function resolveRepoAbsolute(repoRoot: string, href: string): string {
-  return join(repoRoot, href.slice(1));
+/**
+ * Resolve a repo-root-absolute href to an absolute path on disk, or null when it
+ * escapes the repository root.
+ *
+ * The null case is a correctness matter, not just a safety one: `/../../etc/passwd`
+ * resolves to a real file on the host, so a naive `join` + `existsSync` would report
+ * it as a perfectly good link. It is not — there is no such path in the repository.
+ * This is the single owner of path resolution, so the clamp belongs here rather than
+ * in each consumer.
+ */
+export function resolveRepoAbsolute(repoRoot: string, href: string): string | null {
+  const root = resolve(repoRoot);
+  const target = resolve(root, href.slice(1));
+  if (target !== root && !target.startsWith(root + sep)) return null;
+  return target;
 }
 ```
+
+**Images are extracted as links, deliberately.** `INLINE_LINK_RE` matches the
+`[alt](…)` portion of `![alt](…)`, so an image arrives as a `Link` with
+`style: 'inline'` and no special marker. That is the intended behaviour per §3.3
+of the design spec, which requires images to use the reference form like every
+other link — otherwise the §7.4 vendoring rewrite, which only touches footer
+definitions, would leave image paths unretargeted and silently broken in every
+consumer. So check 7 flagging an inline image is correct, and `Link` needs no
+`isImage` member. A test pins this contract down so a later refactor cannot
+quietly change it in either direction.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -584,7 +771,6 @@ git commit -m "feat: extract and classify page links"
     "version": { "const": 1 },
     "bundle": {
       "type": "object",
-      "required": ["root"],
       "additionalProperties": false,
       "properties": {
         "root": { "type": "string", "minLength": 1 },
@@ -606,7 +792,17 @@ git commit -m "feat: extract and classify page links"
               "path": { "type": "string" },
               "url": { "type": "string" },
               "ref": { "type": "string" }
-            }
+            },
+            "allOf": [
+              {
+                "if": { "required": ["source"], "properties": { "source": { "const": "path" } } },
+                "then": { "required": ["path"] }
+              },
+              {
+                "if": { "required": ["source"], "properties": { "source": { "const": "git" } } },
+                "then": { "required": ["url"] }
+              }
+            ]
           }
         ]
       }
@@ -667,6 +863,17 @@ describe('describeError', () => {
     ).toBe('unknown field: nonsense');
   });
 
+  it('lists the allowed values for an enum violation', () => {
+    expect(
+      describeError({
+        keyword: 'enum',
+        instancePath: '/skills',
+        schemaPath: '',
+        params: { allowedValues: ['managed', 'vendored', 'off'] },
+      }),
+    ).toBe('/skills must be one of: managed, vendored, off');
+  });
+
   it('falls back to the instance path and message', () => {
     expect(
       describeError({
@@ -681,6 +888,8 @@ describe('describeError', () => {
 });
 ```
 
+The `enum` branch matters beyond this schema: without it a typo like `skills: manged` produces `/skills must be equal to one of the allowed values` with no list, which defeats much of the point of shipping a schema. Task 7's page schema validates through the same helper and benefits identically.
+
 - [ ] **Step 3: Run the test to verify it fails**
 
 Run: `npx vitest run test/schema.test.ts`
@@ -688,10 +897,18 @@ Expected: FAIL — cannot resolve `../src/schema.js`.
 
 - [ ] **Step 4: Write `src/schema.ts`**
 
+**Use `Ajv2020`, not the default `Ajv` export.** Both schemas declare
+`$schema: "https://json-schema.org/draft/2020-12/schema"`, and ajv's default
+entry point is draft-07 only — it throws `no schema with key or ref
+"https://json-schema.org/draft/2020-12/schema"` at compile time. Verified
+against the installed ajv 8.20.0. The draft-2020 class lives at
+`ajv/dist/2020.js`; the types still come from the main entry.
+
 ```ts
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Ajv, type ErrorObject, type ValidateFunction } from 'ajv';
+import { Ajv2020 } from 'ajv/dist/2020.js';
+import type { ErrorObject, ValidateFunction } from 'ajv';
 import { packageRoot } from './paths.js';
 
 const cache = new Map<string, ValidateFunction>();
@@ -702,7 +919,7 @@ export function compileSchema(filename: string): ValidateFunction {
   if (cached) return cached;
 
   const schema = JSON.parse(readFileSync(join(packageRoot(), 'schemas', filename), 'utf-8'));
-  const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   cache.set(filename, validate);
   return validate;
 }
@@ -715,13 +932,45 @@ export function describeError(error: ErrorObject): string {
   if (error.keyword === 'additionalProperties') {
     return `unknown field: ${(error.params as { additionalProperty: string }).additionalProperty}`;
   }
+  // ajv already computed the allowed values; dropping them would leave the user
+  // reading "must be equal to one of the allowed values" with no list.
+  if (error.keyword === 'enum') {
+    const allowed = (error.params as { allowedValues?: unknown[] }).allowedValues ?? [];
+    return `${error.instancePath || '(root)'} must be one of: ${allowed.join(', ')}`;
+  }
   return `${error.instancePath || '(root)'} ${error.message}`;
 }
 
+/** Keywords describing schema *structure* rather than the user's actual mistake. */
+const STRUCTURAL_KEYWORDS = new Set(['oneOf', 'anyOf', 'allOf', 'if', 'not', 'const']);
+
+/**
+ * Drop errors that describe schema structure rather than a real mistake.
+ *
+ * Inside a `oneOf`, ajv reports every branch's failure — including branches the
+ * user never wrote. Verified: a dep missing its `path` produced "/deps/a must be
+ * equal to constant; missing required field: path; ... must match exactly one
+ * schema in oneOf", where only the middle clause names the real mistake. Falls
+ * back to everything when structure is all there is, so a bad `version:` still
+ * reports something.
+ *
+ * This is the single owner of that filtering. Per-error consumers — the page
+ * frontmatter check emits one `Issue` per error rather than one joined string —
+ * must go through here too, or they reintroduce the noise the moment a schema
+ * grows its first union.
+ */
+export function substantiveErrors(errors: ErrorObject[] | null | undefined): ErrorObject[] {
+  const all = errors ?? [];
+  const substantive = all.filter((e) => !STRUCTURAL_KEYWORDS.has(e.keyword));
+  return substantive.length > 0 ? substantive : all;
+}
+
 export function formatErrors(errors: ErrorObject[] | null | undefined): string {
-  return (errors ?? []).map(describeError).join('; ');
+  return [...new Set(substantiveErrors(errors).map(describeError))].join('; ');
 }
 ```
+
+`deps` is the section users hand-edit most — it is how a dependency gets added — so its error messages carry more weight than the rarity of `oneOf` might suggest.
 
 - [ ] **Step 5: Run the test to verify it passes**
 
@@ -760,14 +1009,49 @@ describe('findRepoRoot', () => {
 });
 
 describe('loadConfig', () => {
-  it('applies defaults for optional sections', () => {
-    const root = tempRepo('version: 1\nbundle:\n  root: llmwiki\n');
+  it('applies defaults for optional sections, including an omitted bundle root', () => {
+    // `bundle: {}` omits `root`, so this actually exercises the DEFAULT_ROOT fallback.
+    const root = tempRepo('version: 1\nbundle: {}\n');
     const config = loadConfig(root);
     expect(config.bundle.root).toBe(DEFAULT_ROOT);
     expect(config.deps).toEqual({});
     expect(config.vendor).toEqual({});
     expect(config.skills).toBe('managed');
     expect(config.mode).toBe('copy');
+  });
+
+  it('rejects a bundle root that climbs out of the repository', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: ../../etc\n');
+    expect(() => loadConfig(root)).toThrow(/inside the repository/);
+  });
+
+  it('rejects an absolute bundle root', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: /etc\n');
+    expect(() => loadConfig(root)).toThrow(/inside the repository/);
+  });
+
+  it('rejects the repository root itself as the bundle root', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: .\n');
+    expect(() => loadConfig(root)).toThrow(/inside the repository/);
+  });
+
+  it('accepts a nested bundle root', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: docs/knowledge\n');
+    expect(loadConfig(root).bundle.root).toBe('docs/knowledge');
+  });
+
+  it('requires path on a path dep', () => {
+    const root = tempRepo(
+      ['version: 1', 'bundle: {}', 'deps:', '  local:', '    source: path'].join('\n'),
+    );
+    expect(() => loadConfig(root)).toThrow(/path/);
+  });
+
+  it('requires url on a git dep', () => {
+    const root = tempRepo(
+      ['version: 1', 'bundle: {}', 'deps:', '  remote:', '    source: git'].join('\n'),
+    );
+    expect(() => loadConfig(root)).toThrow(/url/);
   });
 
   it('normalizes the npm shorthand into a DepSpec', () => {
@@ -820,7 +1104,7 @@ Expected: FAIL — cannot resolve `../src/config.js`.
 
 ```ts
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { parse } from 'yaml';
 import { compileSchema, formatErrors } from './schema.js';
 import type { Config, DepSpec } from './types.js';
@@ -828,7 +1112,13 @@ import type { Config, DepSpec } from './types.js';
 export const CONFIG_FILENAME = 'llmwiki.yaml';
 export const DEFAULT_ROOT = 'llmwiki';
 
-/** Walk up from `startDir` to the directory containing llmwiki.yaml. */
+/**
+ * Walk up from `startDir` to the directory containing llmwiki.yaml.
+ *
+ * The walk is unbounded, matching how `package.json` resolution behaves. A stray
+ * config above the working directory is therefore picked up silently — acceptable,
+ * and the same bargain every other tool in this ecosystem makes.
+ */
 export function findRepoRoot(startDir: string): string | null {
   let dir = resolve(startDir);
   for (;;) {
@@ -842,6 +1132,26 @@ export function findRepoRoot(startDir: string): string | null {
 function normalizeDep(value: unknown): DepSpec {
   if (value === 'npm') return { source: 'npm' };
   return value as DepSpec;
+}
+
+/**
+ * The bundle root must name a directory strictly inside the repository.
+ *
+ * JSON Schema cannot express this robustly — the same reason `resolveRepoAbsolute`
+ * clamps procedurally rather than by pattern. Unlike that clamp, there is no reason
+ * to tolerate an escape here: `bundle.root` is this repository's own content root,
+ * never a vendored symlink target. Rejecting the root directory itself is
+ * deliberate too, since a bundle at the repo root would make the loader walk
+ * `node_modules/` and every other non-bundle directory.
+ */
+function validateBundleRoot(root: string, repoRoot: string): void {
+  const base = resolve(repoRoot);
+  const abs = resolve(base, root);
+  if (abs === base || !abs.startsWith(base + sep)) {
+    throw new Error(
+      `Invalid ${CONFIG_FILENAME}: bundle.root must name a directory inside the repository, got "${root}"`,
+    );
+  }
 }
 
 /** Load, validate and normalize llmwiki.yaml from a repo root. */
@@ -864,10 +1174,14 @@ export function loadConfig(repoRoot: string): Config {
     deps[name] = normalizeDep(value);
   }
 
+  // `root` is optional in the schema so this default is live, not dead code.
+  const root = data.bundle?.root ?? DEFAULT_ROOT;
+  validateBundleRoot(root, repoRoot);
+
   return {
     version: 1,
     bundle: {
-      root: data.bundle?.root ?? DEFAULT_ROOT,
+      root,
       name: data.bundle?.name,
       version: data.bundle?.version,
     },
@@ -932,8 +1246,11 @@ export function page(title: string, extra = ''): string {
   return [
     '---',
     'type: topic',
-    `title: ${title}`,
-    `description: What ${title} is and how to use it here`,
+    // Quoted, not interpolated raw: eight test files import this helper, and a title
+    // containing `:` or `[` would otherwise silently produce different YAML structure
+    // rather than a clear failure — a confusing break far from its cause.
+    `title: ${JSON.stringify(title)}`,
+    `description: ${JSON.stringify(`What ${title} is and how to use it here`)}`,
     'sources:',
     '  - src/example.ts',
     '---',
@@ -1006,6 +1323,32 @@ describe('loadBundle', () => {
     expect(mongo.links.map((l) => l.href)).toEqual(['/llmwiki/index.md']);
   });
 
+  it('records the frontmatter state per page', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/good.md': page('Good'),
+      'llmwiki/broken.md': '---\ntitle: [unclosed\n---\n\nBody.\n',
+    });
+    const bundle = loadBundle(root, 'llmwiki');
+    const byPath = (p: string) => bundle.pages.find((x) => x.repoPath === p)!;
+    expect(byPath('llmwiki/index.md').frontmatterState).toBe('absent');
+    expect(byPath('llmwiki/good.md').frontmatterState).toBe('parsed');
+    expect(byPath('llmwiki/broken.md').frontmatterState).toBe('invalid');
+  });
+
+  it('reports link line numbers relative to the whole file, not the body', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/mongo.md': page('Mongo', '\n[data]: /llmwiki/index.md\n'),
+    });
+    const bundle = loadBundle(root, 'llmwiki');
+    const mongo = bundle.pages.find((p) => p.repoPath === 'llmwiki/mongo.md')!;
+    // The fixture's frontmatter occupies lines 1-7, so the link cannot be on line 1-2.
+    expect(mongo.links[0].line).toBeGreaterThan(7);
+  });
+
   it('ignores non-markdown files and dotfiles', () => {
     const root = makeRepo({
       'llmwiki.yaml': configYaml(),
@@ -1017,9 +1360,54 @@ describe('loadBundle', () => {
     expect(bundle.pages.map((p) => p.repoPath)).toEqual(['llmwiki/index.md']);
   });
 
+  it('skips a dangling symlink instead of crashing', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/real.md': page('Real'),
+    });
+    symlinkSync(join(root, 'llmwiki', 'gone.md'), join(root, 'llmwiki', 'dangling.md'));
+    const bundle = loadBundle(root, 'llmwiki');
+    expect(bundle.pages.map((p) => p.repoPath).sort()).toEqual([
+      'llmwiki/index.md',
+      'llmwiki/real.md',
+    ]);
+  });
+
   it('throws when the bundle root does not exist', () => {
     const root = makeRepo({ 'llmwiki.yaml': configYaml() });
     expect(() => loadBundle(root, 'llmwiki')).toThrow(/llmwiki/);
+  });
+
+  it('loads a bundle at a nested root', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml('docs/knowledge'),
+      'docs/knowledge/index.md': '# Root\n',
+      'docs/knowledge/mongo.md': page('Mongo'),
+    });
+    const bundle = loadBundle(root, 'docs/knowledge');
+    expect(bundle.pages.map((p) => p.repoPath).sort()).toEqual([
+      'docs/knowledge/index.md',
+      'docs/knowledge/mongo.md',
+    ]);
+  });
+});
+
+describe('pageDirectories', () => {
+  it('lists the directory of every page, including the bundle root itself', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/root-page.md': page('Root page'),
+      'llmwiki/data/nested/index.md': '# Nested\n',
+      'llmwiki/data/nested/deep.md': page('Deep'),
+    });
+    // The bundle root must appear as `llmwiki`, not the empty string — Task 11
+    // duplicates this slicing logic, so an off-by-one there would otherwise be silent.
+    expect(pageDirectories(loadBundle(root, 'llmwiki'))).toEqual([
+      'llmwiki',
+      'llmwiki/data/nested',
+    ]);
   });
 });
 
@@ -1066,7 +1454,21 @@ function walk(dir: string): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry.startsWith('.')) continue;
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
+
+    let isDir: boolean;
+    try {
+      isDir = statSync(full).isDirectory();
+    } catch {
+      // A dangling symlink. `mode: link` vendoring (§7.2) makes symlinks inside a
+      // bundle a designed feature, so one orphaned by a pruned `node_modules` is an
+      // ordinary accident — and a linter must always terminate with a report, never
+      // a stack trace. Treat it as absent from the model; check 4 still flags any
+      // page that links to the missing target, because `existsSync` returns false
+      // for a dangling symlink.
+      continue;
+    }
+
+    if (isDir) {
       if (EXCLUDED_DIRS.has(entry)) continue;
       out.push(...walk(full));
     } else if (entry.endsWith('.md')) {
@@ -1084,12 +1486,13 @@ export function loadBundle(repoRoot: string, root: string): Bundle {
 
   const pages: Page[] = walk(absRoot).map((absPath) => {
     const content = readFileSync(absPath, 'utf-8');
-    const { frontmatter, body, bodyStartLine } = parseFrontmatter(content);
+    const { frontmatter, state, body, bodyStartLine } = parseFrontmatter(content);
     return {
       absPath,
       repoPath: toRepoPath(repoRoot, absPath),
       isIndex: basename(absPath) === 'index.md',
       frontmatter,
+      frontmatterState: state,
       body,
       links: extractLinks(body, bodyStartLine),
     };
@@ -1227,6 +1630,17 @@ export const CHECKS: Array<{ id: string; run: Check }> = [];
 export function registerCheck(id: string, run: Check): void {
   CHECKS.push({ id, run });
 }
+```
+
+`registerCheck` has no idempotence guard, deliberately. Probed during execution:
+re-importing the same specifier returns the cached module so registration happens
+once, and vitest's per-file isolation gives each test file a fresh `CHECKS`. The
+one way to break it is importing a check module under **two different specifier
+strings** that resolve to distinct instances — so every check must be imported by
+the same relative `.js` path everywhere. Task 14's order assertion is what would
+catch a violation, far from its cause.
+
+```ts
 
 export function runLint(ctx: LintContext): Issue[] {
   return CHECKS.flatMap(({ run }) => run(ctx));
@@ -1464,17 +1878,28 @@ export const frontmatterCheck: Check = (ctx) => {
   for (const page of ctx.bundle.pages) {
     if (!isConceptPage(page, ctx.bundle)) continue;
 
-    if (page.frontmatter === null) {
+    if (page.frontmatterState === 'absent') {
       issues.push({
         file: page.repoPath,
         check: 'frontmatter',
         severity: 'error',
-        message: 'missing frontmatter, or the YAML could not be parsed',
+        message: 'missing frontmatter',
       });
       continue;
     }
 
-    if (!validate(page.frontmatter)) {
+    if (page.frontmatterState === 'invalid') {
+      issues.push({
+        file: page.repoPath,
+        check: 'frontmatter',
+        severity: 'error',
+        message: 'frontmatter block present, but its YAML is not a parseable mapping',
+      });
+      continue;
+    }
+
+    // An `empty` block validates as {}, which reports each missing required field.
+    if (!validate(page.frontmatter ?? {})) {
       // Read errors immediately: the memoized validator is stateful.
       for (const error of validate.errors ?? []) {
         issues.push({
@@ -1559,8 +1984,31 @@ describe('check: index-frontmatter', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0].message).toMatch(/title/);
   });
+
+  it('flags an index whose frontmatter block will not parse, rather than passing it', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n\n* [Data](/llmwiki/data/index.md) - data\n',
+      'llmwiki/data/index.md': '---\ntitle: [unclosed\n---\n\n# Data\n',
+    });
+    const issues = indexFrontmatter(contextFor(root));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].file).toBe('llmwiki/data/index.md');
+    expect(issues[0].message).toMatch(/not a parseable mapping/);
+  });
+
+  it('flags an empty frontmatter block on a non-root index', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n\n* [Data](/llmwiki/data/index.md) - data\n',
+      'llmwiki/data/index.md': '---\n---\n\n# Data\n',
+    });
+    expect(indexFrontmatter(contextFor(root))).toHaveLength(1);
+  });
 });
 ```
+
+The last two cases are why `FrontmatterState` exists. Under the original single-`null` design both files would have passed this check silently — the malformed one while carrying a real `title:` key.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -1578,7 +2026,19 @@ export const indexFrontmatter: Check = (ctx) => {
   const rootIndex = `${ctx.bundle.root}/index.md`;
 
   for (const page of ctx.bundle.pages) {
-    if (!page.isIndex || page.frontmatter === null) continue;
+    if (!page.isIndex) continue;
+    // No delimited block at all is the correct state for an index file.
+    if (page.frontmatterState === 'absent') continue;
+
+    if (page.frontmatterState === 'invalid') {
+      issues.push({
+        file: page.repoPath,
+        check: 'index-frontmatter',
+        severity: 'error',
+        message: 'index.md has a frontmatter block whose YAML is not a parseable mapping — index files must have none at all',
+      });
+      continue;
+    }
 
     if (page.repoPath !== rootIndex) {
       issues.push({
@@ -1590,7 +2050,24 @@ export const indexFrontmatter: Check = (ctx) => {
       continue;
     }
 
-    const unexpected = Object.keys(page.frontmatter).filter((k) => k !== 'okf_version');
+    // An empty block on the root index would satisfy "only okf_version" vacuously.
+    // Flag it: the same function rejects an empty block on any other index, and the
+    // concept-page check treats one as actively wrong, so passing it here silently
+    // would be an accident rather than a decision.
+    if (page.frontmatterState === 'empty') {
+      issues.push({
+        file: page.repoPath,
+        check: 'index-frontmatter',
+        severity: 'error',
+        message: 'bundle-root index.md has an empty frontmatter block — remove it, or declare okf_version',
+      });
+      continue;
+    }
+
+    // `?? {}` guards state `'empty'`, where `frontmatter` is null. Unreachable now
+    // that the branch above returns first, but kept so this line cannot throw if the
+    // ordering ever changes.
+    const unexpected = Object.keys(page.frontmatter ?? {}).filter((k) => k !== 'okf_version');
     if (unexpected.length > 0) {
       issues.push({
         file: page.repoPath,
@@ -1687,6 +2164,17 @@ describe('check: links-resolve', () => {
     });
     expect(linksResolve(contextFor(root))).toEqual([]);
   });
+
+  it('flags a link that climbs out of the repository root rather than resolving it', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/mongo.md': page('Mongo', '\nSee [esc][esc].\n\n[esc]: /../../etc/passwd\n'),
+    });
+    const issues = linksResolve(contextFor(root));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toMatch(/escapes the repository root/);
+  });
 });
 ```
 
@@ -1697,8 +2185,17 @@ Expected: FAIL — cannot resolve the check module.
 
 - [ ] **Step 3: Write `src/lint/checks/links-resolve.ts`**
 
+**Existence must be case-exact.** macOS and Windows are case-insensitive but
+case-preserving, so `existsSync` accepts a link to `/llmwiki/mongo.md` when the
+file is really `Mongo.md` — verified — and the bundle then fails only on a
+case-sensitive CI checkout. A lint gate that goes green before push and red after
+is worse than none, so membership is tested against the real directory entry.
+`existsSync` is still called first, because it is what reports a page linking to a
+dangling symlink, where the entry exists but the target does not.
+
 ```ts
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
+import { basename, dirname } from 'node:path';
 import { isExternal, isRepoAbsolute, resolveRepoAbsolute } from '../../md/links.js';
 import type { Check } from '../run.js';
 import type { Issue } from '../../types.js';
@@ -1706,19 +2203,66 @@ import type { Issue } from '../../types.js';
 export const linksResolve: Check = (ctx) => {
   const issues: Issue[] = [];
 
+  // Directory listings, memoized per run. `readdirSync` returns real, case-preserved
+  // names, so membership is case-exact where `existsSync` is not.
+  const entriesByDir = new Map<string, Set<string>>();
+  const entriesOf = (dir: string): Set<string> => {
+    let entries = entriesByDir.get(dir);
+    if (!entries) {
+      try {
+        entries = new Set(readdirSync(dir));
+      } catch {
+        entries = new Set();
+      }
+      entriesByDir.set(dir, entries);
+    }
+    return entries;
+  };
+
   for (const page of ctx.bundle.pages) {
     for (const link of page.links) {
       if (link.href === '' || isExternal(link.href)) continue;
       // Relative hrefs are check 8's finding; skip to avoid double-reporting.
       if (!isRepoAbsolute(link.href)) continue;
 
-      if (!existsSync(resolveRepoAbsolute(ctx.repoRoot, link.href))) {
+      const target = resolveRepoAbsolute(ctx.repoRoot, link.href);
+
+      if (target === null) {
+        issues.push({
+          file: page.repoPath,
+          line: link.line,
+          check: 'links-resolve',
+          severity: 'error',
+          message: `link escapes the repository root: ${link.href}`,
+        });
+        continue;
+      }
+
+      // `existsSync` first: it is false for a dangling symlink, where the directory
+      // entry exists but the target does not.
+      if (!existsSync(target)) {
         issues.push({
           file: page.repoPath,
           line: link.line,
           check: 'links-resolve',
           severity: 'error',
           message: `broken link: ${link.href}`,
+        });
+        continue;
+      }
+
+      const name = basename(target);
+      const entries = entriesOf(dirname(target));
+      if (!entries.has(name)) {
+        const actual = [...entries].find((e) => e.toLowerCase() === name.toLowerCase());
+        issues.push({
+          file: page.repoPath,
+          line: link.line,
+          check: 'links-resolve',
+          severity: 'error',
+          message: actual
+            ? `link case does not match the file on disk: ${link.href} (found ${actual})`
+            : `broken link: ${link.href}`,
         });
       }
     }
@@ -1819,6 +2363,30 @@ import { isExternal, isRepoAbsolute } from '../../md/links.js';
 import type { Check } from '../run.js';
 import type { Issue, Page } from '../../types.js';
 
+/**
+ * The repo path a link points at, or null when it is not a page reference.
+ *
+ * Relative hrefs are resolved rather than skipped. A relative link violates check
+ * 8's style rule, but it is still a link, and reachability is a property of the
+ * link graph rather than of link style. Skipping them made check 5 report 208
+ * phantom orphans when the finished CLI was first run against a real 210-page
+ * bundle using the older relative convention — one style difference cascading into
+ * hundreds of false findings, which is how a lint gate gets switched off.
+ */
+function targetOf(page: Page, href: string): string | null {
+  if (href === '' || isExternal(href)) return null;
+  if (isRepoAbsolute(href)) return href.slice(1);
+
+  const dir = pageDirectory(page);
+  const parts = dir === '' ? [] : dir.split('/');
+  for (const segment of href.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') parts.pop();
+    else parts.push(segment);
+  }
+  return parts.join('/');
+}
+
 /** Repo paths reachable by walking index files from the bundle root index. */
 function reachable(pages: Page[], rootIndexPath: string): Set<string> {
   const byPath = new Map(pages.map((p) => [p.repoPath, p]));
@@ -1835,9 +2403,8 @@ function reachable(pages: Page[], rootIndexPath: string): Set<string> {
     if (!page?.isIndex) continue;
 
     for (const link of page.links) {
-      if (link.href === '' || isExternal(link.href) || !isRepoAbsolute(link.href)) continue;
-      const target = link.href.slice(1);
-      if (byPath.has(target)) queue.push(target);
+      const target = targetOf(page, link.href);
+      if (target !== null && byPath.has(target)) queue.push(target);
     }
   }
 
@@ -2267,7 +2834,10 @@ export const linkAbsolute: Check = (ctx) => {
 
       if (isExternal(link.href)) {
         if (ownSlug) {
-          const match = /^https?:\/\/github\.com\/([^/]+\/[^/]+)\/(?:blob|tree)\//.exec(link.href);
+          // blob, tree and raw name file content. `commit`, `pull` and `issues`
+          // reference history or discussion, and the bare homepage is ordinary
+          // prose — all deliberately left alone (design spec §3.3).
+          const match = /^https?:\/\/github\.com\/([^/]+\/[^/]+)\/(?:blob|tree|raw)\//.exec(link.href);
           if (match && match[1] === ownSlug) {
             issues.push({
               file: page.repoPath,
