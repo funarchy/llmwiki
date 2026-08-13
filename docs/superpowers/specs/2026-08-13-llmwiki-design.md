@@ -124,8 +124,22 @@ See [the data router][data-router].
 [data-router]: /llmwiki/data/index.md
 ```
 
-No inline `[text](url)` in bodies. No relative paths. No `[[wikilinks]]`. No
-GitHub URLs for anything in the same repository.
+No inline `[text](url)` in bodies. No relative paths. No `[[wikilinks]]`.
+
+**No GitHub URL that references file content in the same repository** — a
+`/blob/`, `/tree/` or `/raw/` URL naming this repo must be a repo-root-absolute
+path instead, since it points at something the repository already contains and a
+full URL pins it to a branch. Other GitHub URLs for the same repo are left alone
+on purpose: the repository homepage is ordinary prose, and `/commit/`, `/pull/`
+and `/issues/` reference history or discussion rather than current file content,
+which is not what this rule is about.
+
+**Links are matched case-exactly**, even where the filesystem is not. macOS and
+Windows are case-insensitive but case-preserving, so a link to `/llmwiki/mongo.md`
+that actually names `Mongo.md` resolves locally and breaks on a case-sensitive CI
+checkout. A lint gate that passes before push and fails after is worse than no
+gate, so existence is confirmed against the real directory entry rather than by
+asking the filesystem whether the path resolves.
 
 Two independent rules here, each load-bearing for a different reason.
 
