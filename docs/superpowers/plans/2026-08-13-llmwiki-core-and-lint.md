@@ -63,7 +63,7 @@ Two deliberate deviations from §15's testing plan:
 ### Task 1: Project scaffold
 
 **Files:**
-- Create: `package.json`, `tsconfig.json`, `vitest.config.ts`, `.gitignore`
+- Create: `package.json`, `tsconfig.json`, `tsconfig.test.json`, `vitest.config.ts`, `.gitignore`
 - Create: `src/types.ts`, `src/paths.ts`
 - Test: `test/paths.test.ts`
 
@@ -92,12 +92,18 @@ Replace the `scripts` block and add `bin`/`files`/`engines` in `package.json`:
   "engines": { "node": ">=20" },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:watch": "vitest"
   }
 }
 ```
+
+`typecheck` deliberately points at `tsconfig.test.json`, which covers `src/`
+**and** `test/`. `build` stays on `tsconfig.json` so only `src/` is emitted into
+`dist/`. Without this split, test files are never typechecked by anything —
+vitest is esbuild-based and strips types without checking them, so a fixture
+literal that does not satisfy `Page` or `Config` would pass silently.
 
 - [ ] **Step 3: Write `tsconfig.json`**
 
@@ -121,6 +127,25 @@ Replace the `scripts` block and add `bin`/`files`/`engines` in `package.json`:
 ```
 
 ESM with NodeNext means every relative import must carry a `.js` extension, including in `.ts` sources. All code in this plan follows that.
+
+TypeScript 7 does not auto-discover `@types/node`, so add `"types": ["node"]` to `compilerOptions` with a comment noting that any future `@types/*` package shipping globals must be listed there too. tsconfig files are JSONC, so comments are valid.
+
+- [ ] **Step 3b: Write `tsconfig.test.json`**
+
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}
+```
+
+The `rootDir: "."` override is required: the base config sets `rootDir: "src"`, and including `test/` under that fails with "not under rootDir".
+
+Verify the setup works by writing a temporary test file containing `const x: number = "not a number";`, confirming `npm run typecheck` **fails** on it, then deleting it and confirming typecheck passes. Do not commit the temporary file.
 
 - [ ] **Step 4: Write `vitest.config.ts`**
 
@@ -688,10 +713,18 @@ Expected: FAIL — cannot resolve `../src/schema.js`.
 
 - [ ] **Step 4: Write `src/schema.ts`**
 
+**Use `Ajv2020`, not the default `Ajv` export.** Both schemas declare
+`$schema: "https://json-schema.org/draft/2020-12/schema"`, and ajv's default
+entry point is draft-07 only — it throws `no schema with key or ref
+"https://json-schema.org/draft/2020-12/schema"` at compile time. Verified
+against the installed ajv 8.20.0. The draft-2020 class lives at
+`ajv/dist/2020.js`; the types still come from the main entry.
+
 ```ts
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Ajv, type ErrorObject, type ValidateFunction } from 'ajv';
+import { Ajv2020 } from 'ajv/dist/2020.js';
+import type { ErrorObject, ValidateFunction } from 'ajv';
 import { packageRoot } from './paths.js';
 
 const cache = new Map<string, ValidateFunction>();
@@ -702,7 +735,7 @@ export function compileSchema(filename: string): ValidateFunction {
   if (cached) return cached;
 
   const schema = JSON.parse(readFileSync(join(packageRoot(), 'schemas', filename), 'utf-8'));
-  const validate = new Ajv({ allErrors: true, strict: false }).compile(schema);
+  const validate = new Ajv2020({ allErrors: true, strict: false }).compile(schema);
   cache.set(filename, validate);
   return validate;
 }
