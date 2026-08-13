@@ -74,6 +74,47 @@ describe('check: orphans', () => {
     expect(orphans(contextFor(root))).toEqual([]);
   });
 
+  it('follows a relative link in an index, since reachability is not about style', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n\n* [Data](data/index.md) - data\n',
+      'llmwiki/data/index.md': '# Data\n\n* [Mongo](mongo.md) - mongo\n',
+      'llmwiki/data/mongo.md': page('Mongo'),
+    });
+    expect(orphans(contextFor(root))).toEqual([]);
+  });
+
+  it('follows a parent-relative link in an index', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n\n* [Data](data/index.md) - data\n',
+      'llmwiki/data/index.md': '# Data\n\n* [Top](../top.md) - top\n',
+      'llmwiki/top.md': page('Top'),
+    });
+    expect(orphans(contextFor(root))).toEqual([]);
+  });
+
+  it('still flags a page nothing links to, relative or absolute', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/lonely.md': page('Lonely'),
+    });
+    expect(orphans(contextFor(root)).map((i) => i.file)).toEqual(['llmwiki/lonely.md']);
+  });
+
+  it('does not follow a relative link that climbs out of the bundle', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n\n* [Out](../outside.md) - out\n',
+      'llmwiki/lonely.md': page('Lonely'),
+      'outside.md': '# Outside\n',
+    });
+    // `outside.md` is not in the bundle, so it is simply not a traversal target,
+    // and `lonely.md` remains an orphan.
+    expect(orphans(contextFor(root)).map((i) => i.file)).toEqual(['llmwiki/lonely.md']);
+  });
+
   it('reports the check id and error severity', () => {
     const root = makeRepo({
       'llmwiki.yaml': configYaml(),

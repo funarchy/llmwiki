@@ -1,7 +1,30 @@
-import { isConceptPage } from '../../bundle/load.js';
+import { isConceptPage, pageDirectory } from '../../bundle/load.js';
 import { isExternal, isRepoAbsolute } from '../../md/links.js';
 import type { Check } from '../run.js';
 import type { Issue, Page } from '../../types.js';
+
+/**
+ * The repo path a link points at, or null when it is not a page reference.
+ *
+ * Relative hrefs are resolved rather than skipped. A relative link violates check
+ * 8's style rule, but it is still a link, and reachability is a property of the
+ * link graph rather than of link style. Skipping them made check 5 report 208
+ * phantom orphans on a real 210-page bundle that used the older relative
+ * convention — one style difference cascading into hundreds of false findings.
+ */
+function targetOf(page: Page, href: string): string | null {
+  if (href === '' || isExternal(href)) return null;
+  if (isRepoAbsolute(href)) return href.slice(1);
+
+  const dir = pageDirectory(page);
+  const parts = dir === '' ? [] : dir.split('/');
+  for (const segment of href.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') parts.pop();
+    else parts.push(segment);
+  }
+  return parts.join('/');
+}
 
 /** Repo paths reachable by walking index files from the bundle root index. */
 function reachable(pages: Page[], rootIndexPath: string): Set<string> {
@@ -19,9 +42,8 @@ function reachable(pages: Page[], rootIndexPath: string): Set<string> {
     if (!page?.isIndex) continue;
 
     for (const link of page.links) {
-      if (link.href === '' || isExternal(link.href) || !isRepoAbsolute(link.href)) continue;
-      const target = link.href.slice(1);
-      if (byPath.has(target)) queue.push(target);
+      const target = targetOf(page, link.href);
+      if (target !== null && byPath.has(target)) queue.push(target);
     }
   }
 
@@ -42,8 +64,7 @@ export const orphans: Check = (ctx) => {
       file: page.repoPath,
       check: 'orphans',
       severity: 'error',
-      message:
-        'orphan — not reachable by following index.md links from the bundle root; if an index does link to it, check that link is repo-root-absolute',
+      message: 'orphan — not reachable by following index.md links from the bundle root',
     });
   }
 
