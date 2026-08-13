@@ -302,9 +302,16 @@ git commit -m "feat: scaffold llmwiki package with shared types"
 
 **Files:**
 - Create: `src/md/frontmatter.ts`
+- Modify: `src/types.ts` (add `FrontmatterState`, add `frontmatterState` to `Page`)
 - Test: `test/md/frontmatter.test.ts`
 
 `bodyStartLine` is the reason this returns a struct rather than a tuple: link line numbers must map back to real file lines, so the body's offset has to travel with it.
+
+**Two things this module must get right, both found by review during execution:**
+
+1. **Normalize CRLF to LF before splitting.** `content.split('\n')` leaves each line's `\r` attached. Interior frontmatter lines rejoin into valid CRLF pairs, but the last line before the closing delimiter ends up with an orphan `\r` — and YAML 1.2 does not treat a bare `\r` as a line break, so it becomes part of that scalar. Verified against yaml 2.9.0: a CRLF file yields `{ type: 'topic', title: 'Mongo\r' }`. That passes a `minLength` schema check while carrying an invisible control character. Normalizing does not disturb `bodyStartLine`, because replacing `\r\n` with `\n` leaves the line count unchanged.
+
+2. **Report *why* there is no frontmatter, not just that there isn't.** A single `null` cannot distinguish "no block at all" from "a block whose YAML failed to parse." Check 3 (Task 8) treats absent frontmatter on an `index.md` as the passing state, so conflating the two lets an index file with a malformed block carrying real metadata slip past the very check meant to catch it. Hence the `FrontmatterState` discriminant.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -315,8 +322,9 @@ import { describe, it, expect } from 'vitest';
 import { parseFrontmatter } from '../../src/md/frontmatter.js';
 
 describe('parseFrontmatter', () => {
-  it('returns null frontmatter when the file does not open with a delimiter', () => {
+  it('reports absent when the file does not open with a delimiter', () => {
     const result = parseFrontmatter('# Title\n\nBody text.\n');
+    expect(result.state).toBe('absent');
     expect(result.frontmatter).toBeNull();
     expect(result.body).toBe('# Title\n\nBody text.\n');
     expect(result.bodyStartLine).toBe(1);
@@ -325,26 +333,38 @@ describe('parseFrontmatter', () => {
   it('parses frontmatter and reports where the body starts', () => {
     const content = ['---', 'type: topic', 'title: Mongo', '---', '', 'Body.', ''].join('\n');
     const result = parseFrontmatter(content);
+    expect(result.state).toBe('parsed');
     expect(result.frontmatter).toEqual({ type: 'topic', title: 'Mongo' });
     expect(result.body).toBe('\nBody.\n');
     expect(result.bodyStartLine).toBe(5);
   });
 
-  it('treats an unterminated frontmatter block as no frontmatter', () => {
+  it('reports absent for an unterminated frontmatter block', () => {
     const result = parseFrontmatter('---\ntype: topic\n\nBody.\n');
+    expect(result.state).toBe('absent');
     expect(result.frontmatter).toBeNull();
     expect(result.bodyStartLine).toBe(1);
   });
 
-  it('treats unparseable YAML as no frontmatter', () => {
+  it('reports invalid for a block whose YAML will not parse', () => {
     const content = ['---', 'type: [unclosed', '---', '', 'Body.'].join('\n');
     const result = parseFrontmatter(content);
+    expect(result.state).toBe('invalid');
+    expect(result.frontmatter).toBeNull();
+    expect(result.bodyStartLine).toBe(4);
+  });
+
+  it('reports invalid for a block that parses to something other than a mapping', () => {
+    const content = ['---', '- a', '- b', '---', '', 'Body.'].join('\n');
+    const result = parseFrontmatter(content);
+    expect(result.state).toBe('invalid');
     expect(result.frontmatter).toBeNull();
   });
 
-  it('treats an empty frontmatter block as no frontmatter', () => {
+  it('reports empty for a block that holds nothing', () => {
     const content = ['---', '---', '', 'Body.'].join('\n');
     const result = parseFrontmatter(content);
+    expect(result.state).toBe('empty');
     expect(result.frontmatter).toBeNull();
     expect(result.bodyStartLine).toBe(3);
   });
@@ -354,8 +374,20 @@ describe('parseFrontmatter', () => {
     const result = parseFrontmatter(content);
     expect(result.frontmatter?.sources).toEqual(['src/a.ts', 'src/b.ts']);
   });
+
+  it('does not leak a carriage return into the last frontmatter value on a CRLF file', () => {
+    const content = '---\r\ntype: topic\r\ntitle: Mongo\r\n---\r\n\r\nBody.\r\n';
+    const result = parseFrontmatter(content);
+    expect(result.state).toBe('parsed');
+    expect(result.frontmatter).toEqual({ type: 'topic', title: 'Mongo' });
+    expect(result.body).toBe('\nBody.\n');
+    // Line count is unchanged by normalization, so this still indexes the real file.
+    expect(result.bodyStartLine).toBe(5);
+  });
 });
 ```
+
+The CRLF test is the regression guard for finding 1: without normalization, `title` comes back as `'Mongo\r'` and the assertion fails. The `bodyStartLine` assertion in the `invalid` case pins down that a failed parse still reports the body position correctly — the old implementation returned early with `bodyStartLine: 1` only for `absent`, and it would be easy to regress `invalid` into the same path.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -364,12 +396,37 @@ Expected: FAIL — cannot resolve `../../src/md/frontmatter.js`.
 
 - [ ] **Step 3: Write `src/md/frontmatter.ts`**
 
+First add to `src/types.ts`:
+
+```ts
+/**
+ * What a page's frontmatter delimiter block contained.
+ * - `absent`  — no delimited block: no opening `---`, or it was never closed
+ * - `empty`   — a block was present but held nothing
+ * - `invalid` — a block was present but its YAML would not parse, or was not a mapping
+ * - `parsed`  — a block was present and yielded a mapping
+ */
+export type FrontmatterState = 'absent' | 'empty' | 'invalid' | 'parsed';
+```
+
+and add one member to the existing `Page` interface:
+
+```ts
+  frontmatterState: FrontmatterState;
+```
+
+`FrontmatterState` lives in `types.ts` rather than in `frontmatter.ts` so that `types.ts` stays dependency-free and `Page` can name it.
+
+Then `src/md/frontmatter.ts`:
+
 ```ts
 import { parse } from 'yaml';
-import type { Frontmatter } from '../types.js';
+import type { Frontmatter, FrontmatterState } from '../types.js';
 
 export interface ParsedFile {
+  /** The parsed mapping. Null unless `state` is `parsed`. */
   frontmatter: Frontmatter | null;
+  state: FrontmatterState;
   body: string;
   /** 1-based line number where the body begins. */
   bodyStartLine: number;
@@ -378,11 +435,21 @@ export interface ParsedFile {
 const DELIM = '---';
 
 export function parseFrontmatter(content: string): ParsedFile {
-  const lines = content.split('\n');
+  // Normalize to LF first: otherwise the last frontmatter line keeps an orphan
+  // `\r`, which YAML 1.2 treats as scalar content rather than a line break.
+  // Line count is unchanged, so `bodyStartLine` still indexes the real file.
+  const normalized = content.replace(/\r\n/g, '\n');
+  const lines = normalized.split('\n');
 
-  if (lines[0]?.trim() !== DELIM) {
-    return { frontmatter: null, body: content, bodyStartLine: 1 };
-  }
+  const absent: ParsedFile = {
+    frontmatter: null,
+    state: 'absent',
+    body: normalized,
+    bodyStartLine: 1,
+  };
+
+  // `.trim()` rather than `===` so a leading BOM or trailing space still matches.
+  if (lines[0]?.trim() !== DELIM) return absent;
 
   let closeIdx = -1;
   for (let i = 1; i < lines.length; i++) {
@@ -391,25 +458,25 @@ export function parseFrontmatter(content: string): ParsedFile {
       break;
     }
   }
-  if (closeIdx === -1) {
-    return { frontmatter: null, body: content, bodyStartLine: 1 };
-  }
+  if (closeIdx === -1) return absent;
 
-  const yamlText = lines.slice(1, closeIdx).join('\n');
   const body = lines.slice(closeIdx + 1).join('\n');
   const bodyStartLine = closeIdx + 2;
 
-  let frontmatter: Frontmatter | null = null;
+  let loaded: unknown;
   try {
-    const loaded = parse(yamlText) as unknown;
-    if (loaded !== null && typeof loaded === 'object' && !Array.isArray(loaded)) {
-      frontmatter = loaded as Frontmatter;
-    }
+    loaded = parse(lines.slice(1, closeIdx).join('\n'));
   } catch {
-    frontmatter = null;
+    return { frontmatter: null, state: 'invalid', body, bodyStartLine };
   }
 
-  return { frontmatter, body, bodyStartLine };
+  if (loaded === null || loaded === undefined) {
+    return { frontmatter: null, state: 'empty', body, bodyStartLine };
+  }
+  if (typeof loaded !== 'object' || Array.isArray(loaded)) {
+    return { frontmatter: null, state: 'invalid', body, bodyStartLine };
+  }
+  return { frontmatter: loaded as Frontmatter, state: 'parsed', body, bodyStartLine };
 }
 ```
 
@@ -1117,12 +1184,13 @@ export function loadBundle(repoRoot: string, root: string): Bundle {
 
   const pages: Page[] = walk(absRoot).map((absPath) => {
     const content = readFileSync(absPath, 'utf-8');
-    const { frontmatter, body, bodyStartLine } = parseFrontmatter(content);
+    const { frontmatter, state, body, bodyStartLine } = parseFrontmatter(content);
     return {
       absPath,
       repoPath: toRepoPath(repoRoot, absPath),
       isIndex: basename(absPath) === 'index.md',
       frontmatter,
+      frontmatterState: state,
       body,
       links: extractLinks(body, bodyStartLine),
     };
@@ -1497,17 +1565,28 @@ export const frontmatterCheck: Check = (ctx) => {
   for (const page of ctx.bundle.pages) {
     if (!isConceptPage(page, ctx.bundle)) continue;
 
-    if (page.frontmatter === null) {
+    if (page.frontmatterState === 'absent') {
       issues.push({
         file: page.repoPath,
         check: 'frontmatter',
         severity: 'error',
-        message: 'missing frontmatter, or the YAML could not be parsed',
+        message: 'missing frontmatter',
       });
       continue;
     }
 
-    if (!validate(page.frontmatter)) {
+    if (page.frontmatterState === 'invalid') {
+      issues.push({
+        file: page.repoPath,
+        check: 'frontmatter',
+        severity: 'error',
+        message: 'frontmatter block present, but its YAML is not a parseable mapping',
+      });
+      continue;
+    }
+
+    // An `empty` block validates as {}, which reports each missing required field.
+    if (!validate(page.frontmatter ?? {})) {
       // Read errors immediately: the memoized validator is stateful.
       for (const error of validate.errors ?? []) {
         issues.push({
@@ -1592,8 +1671,31 @@ describe('check: index-frontmatter', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0].message).toMatch(/title/);
   });
+
+  it('flags an index whose frontmatter block will not parse, rather than passing it', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n\n* [Data](/llmwiki/data/index.md) - data\n',
+      'llmwiki/data/index.md': '---\ntitle: [unclosed\n---\n\n# Data\n',
+    });
+    const issues = indexFrontmatter(contextFor(root));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].file).toBe('llmwiki/data/index.md');
+    expect(issues[0].message).toMatch(/not a parseable mapping/);
+  });
+
+  it('flags an empty frontmatter block on a non-root index', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n\n* [Data](/llmwiki/data/index.md) - data\n',
+      'llmwiki/data/index.md': '---\n---\n\n# Data\n',
+    });
+    expect(indexFrontmatter(contextFor(root))).toHaveLength(1);
+  });
 });
 ```
+
+The last two cases are why `FrontmatterState` exists. Under the original single-`null` design both files would have passed this check silently — the malformed one while carrying a real `title:` key.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -1611,7 +1713,19 @@ export const indexFrontmatter: Check = (ctx) => {
   const rootIndex = `${ctx.bundle.root}/index.md`;
 
   for (const page of ctx.bundle.pages) {
-    if (!page.isIndex || page.frontmatter === null) continue;
+    if (!page.isIndex) continue;
+    // No delimited block at all is the correct state for an index file.
+    if (page.frontmatterState === 'absent') continue;
+
+    if (page.frontmatterState === 'invalid') {
+      issues.push({
+        file: page.repoPath,
+        check: 'index-frontmatter',
+        severity: 'error',
+        message: 'index.md has a frontmatter block whose YAML is not a parseable mapping — index files must have none at all',
+      });
+      continue;
+    }
 
     if (page.repoPath !== rootIndex) {
       issues.push({
