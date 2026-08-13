@@ -562,8 +562,48 @@ describe('extractLinks', () => {
   it('returns an empty list for a body with no links', () => {
     expect(extractLinks('Just prose.\n', 1)).toEqual([]);
   });
+
+  it('ignores links inside a fence indented under a list item', () => {
+    const body = ['- item one', '  ```bash', '  See [x](/not/real.md)', '  ```', '- item two'].join('\n');
+    expect(extractLinks(body, 1)).toEqual([]);
+  });
+
+  it('ignores links inside a tilde fence', () => {
+    const body = ['~~~markdown', '[a]: /llmwiki/x.md', '~~~'].join('\n');
+    expect(extractLinks(body, 1)).toEqual([]);
+  });
+
+  it('finds a reference definition indented up to three spaces', () => {
+    const links = extractLinks('   [a]: /llmwiki/x.md', 1);
+    expect(links).toEqual([
+      { ref: 'a', href: '/llmwiki/x.md', line: 1, style: 'reference-definition' },
+    ]);
+  });
+
+  it('treats an image as a link, so the reference-style rule covers it too', () => {
+    const links = extractLinks('![diagram](/llmwiki/img/d.png)', 2);
+    expect(links).toEqual([
+      { href: '/llmwiki/img/d.png', line: 2, style: 'inline' },
+    ]);
+  });
+});
+
+describe('resolveRepoAbsolute', () => {
+  it('resolves an href inside the repository root', () => {
+    expect(resolveRepoAbsolute('/repo', '/llmwiki/x.md')).toBe(join('/repo', 'llmwiki', 'x.md'));
+  });
+
+  it('returns null for an href that climbs out of the repository root', () => {
+    expect(resolveRepoAbsolute('/repo', '/../../etc/passwd')).toBeNull();
+  });
+
+  it('resolves interior traversal that stays inside the root', () => {
+    expect(resolveRepoAbsolute('/repo', '/llmwiki/../llmwiki/x.md')).toBe(join('/repo', 'llmwiki', 'x.md'));
+  });
 });
 ```
+
+The `stripCode` describe block also gains a tilde case and an indented-fence case. Add `resolveRepoAbsolute` and `join` (from `node:path`) to the test file's imports.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -572,19 +612,29 @@ Expected: FAIL — cannot resolve `../../src/md/links.js`.
 
 - [ ] **Step 3: Write `src/md/links.ts`**
 
+Three regex details are load-bearing, all found by review during execution:
+
+- **Fences must tolerate leading whitespace.** Anchoring at column 0 misses a fence indented under a list item, which is a routine authoring pattern — and for a wiki documenting markdown conventions, those blocks contain deliberately fictitious or deliberately relative example links. Verified: with a column-0 anchor, `See [x](/not/real.md)` inside an indented block survives as prose, so checks 4, 7 and 8 all fire on a code sample.
+- **Tilde fences count too.** They are the natural escape when a block must contain literal triple-backticks, and links inside one leak otherwise.
+- **Reference definitions may be indented up to three spaces** per CommonMark. Missing them is a *false negative* — the link becomes invisible to every check, so a genuinely broken one goes unreported.
+
 ```ts
-import { join } from 'node:path';
+import { resolve, sep } from 'node:path';
 import type { Link } from '../types.js';
 
-const FENCE_RE = /^```[\s\S]*?^```/gm;
+const BACKTICK_FENCE_RE = /^[ \t]*```[\s\S]*?^[ \t]*```/gm;
+const TILDE_FENCE_RE = /^[ \t]*~~~[\s\S]*?^[ \t]*~~~/gm;
 const INLINE_CODE_RE = /`{1,2}[^`\n]*`{1,2}/g;
 const INLINE_LINK_RE = /\[([^\]]*)\]\(\s*([^)\s]+)/g;
-const REF_DEF_RE = /^\[([^\]]+)\]:\s*(\S+)/;
+const REF_DEF_RE = /^ {0,3}\[([^\]]+)\]:\s*(\S+)/;
 
 /** Blank out code so example links are never treated as real, preserving line count. */
 export function stripCode(text: string): string {
   const blank = (m: string) => m.replace(/[^\n]/g, ' ');
-  return text.replace(FENCE_RE, blank).replace(INLINE_CODE_RE, blank);
+  return text
+    .replace(BACKTICK_FENCE_RE, blank)
+    .replace(TILDE_FENCE_RE, blank)
+    .replace(INLINE_CODE_RE, blank);
 }
 
 function stripFragment(href: string): string {
@@ -634,11 +684,33 @@ export function isRepoAbsolute(href: string): boolean {
   return href.startsWith('/');
 }
 
-/** Resolve a repo-root-absolute href to an absolute path on disk. */
-export function resolveRepoAbsolute(repoRoot: string, href: string): string {
-  return join(repoRoot, href.slice(1));
+/**
+ * Resolve a repo-root-absolute href to an absolute path on disk, or null when it
+ * escapes the repository root.
+ *
+ * The null case is a correctness matter, not just a safety one: `/../../etc/passwd`
+ * resolves to a real file on the host, so a naive `join` + `existsSync` would report
+ * it as a perfectly good link. It is not — there is no such path in the repository.
+ * This is the single owner of path resolution, so the clamp belongs here rather than
+ * in each consumer.
+ */
+export function resolveRepoAbsolute(repoRoot: string, href: string): string | null {
+  const root = resolve(repoRoot);
+  const target = resolve(root, href.slice(1));
+  if (target !== root && !target.startsWith(root + sep)) return null;
+  return target;
 }
 ```
+
+**Images are extracted as links, deliberately.** `INLINE_LINK_RE` matches the
+`[alt](…)` portion of `![alt](…)`, so an image arrives as a `Link` with
+`style: 'inline'` and no special marker. That is the intended behaviour per §3.3
+of the design spec, which requires images to use the reference form like every
+other link — otherwise the §7.4 vendoring rewrite, which only touches footer
+definitions, would leave image paths unretargeted and silently broken in every
+consumer. So check 7 flagging an inline image is correct, and `Link` needs no
+`isImage` member. A test pins this contract down so a later refactor cannot
+quietly change it in either direction.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -1834,6 +1906,17 @@ describe('check: links-resolve', () => {
     });
     expect(linksResolve(contextFor(root))).toEqual([]);
   });
+
+  it('flags a link that climbs out of the repository root rather than resolving it', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/mongo.md': page('Mongo', '\nSee [esc][esc].\n\n[esc]: /../../etc/passwd\n'),
+    });
+    const issues = linksResolve(contextFor(root));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toMatch(/escapes the repository root/);
+  });
 });
 ```
 
@@ -1859,7 +1942,20 @@ export const linksResolve: Check = (ctx) => {
       // Relative hrefs are check 8's finding; skip to avoid double-reporting.
       if (!isRepoAbsolute(link.href)) continue;
 
-      if (!existsSync(resolveRepoAbsolute(ctx.repoRoot, link.href))) {
+      const target = resolveRepoAbsolute(ctx.repoRoot, link.href);
+
+      if (target === null) {
+        issues.push({
+          file: page.repoPath,
+          line: link.line,
+          check: 'links-resolve',
+          severity: 'error',
+          message: `link escapes the repository root: ${link.href}`,
+        });
+        continue;
+      }
+
+      if (!existsSync(target)) {
         issues.push({
           file: page.repoPath,
           line: link.line,

@@ -156,6 +156,22 @@ long paths out of the prose.
 
 Index files use inline links, matching OKF §8, and are also absolute.
 
+**Images are links, with no exception.** `![alt][diagram]` plus a footer
+`[diagram]: /llmwiki/img/diagram.png`, never `![alt](/llmwiki/img/diagram.png)`.
+This is not consistency for its own sake — it is what keeps §7.4 correct. The
+vendoring rewrite is deliberately confined to footer reference definitions, so an
+inline image path would survive vendoring unretargeted and break silently in
+every consumer, surfacing later as a generic broken link rather than as the
+un-rewritten path it is. Requiring the reference form keeps images inside the one
+mechanism that gets rewritten, and keeps §3.3's single invariant single.
+
+Two known limitations of the link scanner, accepted rather than solved: an
+**unclosed** code fence is not treated as code, so link-shaped text after it is
+scanned as prose; and a reference definition indented four or more spaces is
+ignored, since at that indentation CommonMark reads it as an indented code block
+anyway. Neither is worth a full CommonMark parser for a corpus this project's own
+tooling writes.
+
 ## 4. Bundle identity: no new manifest file
 
 A bundle's identity and dependencies come from files that already exist.
