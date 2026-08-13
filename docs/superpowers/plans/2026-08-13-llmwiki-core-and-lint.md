@@ -748,7 +748,6 @@ git commit -m "feat: extract and classify page links"
     "version": { "const": 1 },
     "bundle": {
       "type": "object",
-      "required": ["root"],
       "additionalProperties": false,
       "properties": {
         "root": { "type": "string", "minLength": 1 },
@@ -770,7 +769,17 @@ git commit -m "feat: extract and classify page links"
               "path": { "type": "string" },
               "url": { "type": "string" },
               "ref": { "type": "string" }
-            }
+            },
+            "allOf": [
+              {
+                "if": { "required": ["source"], "properties": { "source": { "const": "path" } } },
+                "then": { "required": ["path"] }
+              },
+              {
+                "if": { "required": ["source"], "properties": { "source": { "const": "git" } } },
+                "then": { "required": ["url"] }
+              }
+            ]
           }
         ]
       }
@@ -831,6 +840,17 @@ describe('describeError', () => {
     ).toBe('unknown field: nonsense');
   });
 
+  it('lists the allowed values for an enum violation', () => {
+    expect(
+      describeError({
+        keyword: 'enum',
+        instancePath: '/skills',
+        schemaPath: '',
+        params: { allowedValues: ['managed', 'vendored', 'off'] },
+      }),
+    ).toBe('/skills must be one of: managed, vendored, off');
+  });
+
   it('falls back to the instance path and message', () => {
     expect(
       describeError({
@@ -844,6 +864,8 @@ describe('describeError', () => {
   });
 });
 ```
+
+The `enum` branch matters beyond this schema: without it a typo like `skills: manged` produces `/skills must be equal to one of the allowed values` with no list, which defeats much of the point of shipping a schema. Task 7's page schema validates through the same helper and benefits identically.
 
 - [ ] **Step 3: Run the test to verify it fails**
 
@@ -886,6 +908,12 @@ export function describeError(error: ErrorObject): string {
   }
   if (error.keyword === 'additionalProperties') {
     return `unknown field: ${(error.params as { additionalProperty: string }).additionalProperty}`;
+  }
+  // ajv already computed the allowed values; dropping them would leave the user
+  // reading "must be equal to one of the allowed values" with no list.
+  if (error.keyword === 'enum') {
+    const allowed = (error.params as { allowedValues?: unknown[] }).allowedValues ?? [];
+    return `${error.instancePath || '(root)'} must be one of: ${allowed.join(', ')}`;
   }
   return `${error.instancePath || '(root)'} ${error.message}`;
 }
@@ -932,14 +960,49 @@ describe('findRepoRoot', () => {
 });
 
 describe('loadConfig', () => {
-  it('applies defaults for optional sections', () => {
-    const root = tempRepo('version: 1\nbundle:\n  root: llmwiki\n');
+  it('applies defaults for optional sections, including an omitted bundle root', () => {
+    // `bundle: {}` omits `root`, so this actually exercises the DEFAULT_ROOT fallback.
+    const root = tempRepo('version: 1\nbundle: {}\n');
     const config = loadConfig(root);
     expect(config.bundle.root).toBe(DEFAULT_ROOT);
     expect(config.deps).toEqual({});
     expect(config.vendor).toEqual({});
     expect(config.skills).toBe('managed');
     expect(config.mode).toBe('copy');
+  });
+
+  it('rejects a bundle root that climbs out of the repository', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: ../../etc\n');
+    expect(() => loadConfig(root)).toThrow(/inside the repository/);
+  });
+
+  it('rejects an absolute bundle root', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: /etc\n');
+    expect(() => loadConfig(root)).toThrow(/inside the repository/);
+  });
+
+  it('rejects the repository root itself as the bundle root', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: .\n');
+    expect(() => loadConfig(root)).toThrow(/inside the repository/);
+  });
+
+  it('accepts a nested bundle root', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: docs/knowledge\n');
+    expect(loadConfig(root).bundle.root).toBe('docs/knowledge');
+  });
+
+  it('requires path on a path dep', () => {
+    const root = tempRepo(
+      ['version: 1', 'bundle: {}', 'deps:', '  local:', '    source: path'].join('\n'),
+    );
+    expect(() => loadConfig(root)).toThrow(/path/);
+  });
+
+  it('requires url on a git dep', () => {
+    const root = tempRepo(
+      ['version: 1', 'bundle: {}', 'deps:', '  remote:', '    source: git'].join('\n'),
+    );
+    expect(() => loadConfig(root)).toThrow(/url/);
   });
 
   it('normalizes the npm shorthand into a DepSpec', () => {
@@ -992,7 +1055,7 @@ Expected: FAIL — cannot resolve `../src/config.js`.
 
 ```ts
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { parse } from 'yaml';
 import { compileSchema, formatErrors } from './schema.js';
 import type { Config, DepSpec } from './types.js';
@@ -1000,7 +1063,13 @@ import type { Config, DepSpec } from './types.js';
 export const CONFIG_FILENAME = 'llmwiki.yaml';
 export const DEFAULT_ROOT = 'llmwiki';
 
-/** Walk up from `startDir` to the directory containing llmwiki.yaml. */
+/**
+ * Walk up from `startDir` to the directory containing llmwiki.yaml.
+ *
+ * The walk is unbounded, matching how `package.json` resolution behaves. A stray
+ * config above the working directory is therefore picked up silently — acceptable,
+ * and the same bargain every other tool in this ecosystem makes.
+ */
 export function findRepoRoot(startDir: string): string | null {
   let dir = resolve(startDir);
   for (;;) {
@@ -1014,6 +1083,26 @@ export function findRepoRoot(startDir: string): string | null {
 function normalizeDep(value: unknown): DepSpec {
   if (value === 'npm') return { source: 'npm' };
   return value as DepSpec;
+}
+
+/**
+ * The bundle root must name a directory strictly inside the repository.
+ *
+ * JSON Schema cannot express this robustly — the same reason `resolveRepoAbsolute`
+ * clamps procedurally rather than by pattern. Unlike that clamp, there is no reason
+ * to tolerate an escape here: `bundle.root` is this repository's own content root,
+ * never a vendored symlink target. Rejecting the root directory itself is
+ * deliberate too, since a bundle at the repo root would make the loader walk
+ * `node_modules/` and every other non-bundle directory.
+ */
+function validateBundleRoot(root: string, repoRoot: string): void {
+  const base = resolve(repoRoot);
+  const abs = resolve(base, root);
+  if (abs === base || !abs.startsWith(base + sep)) {
+    throw new Error(
+      `Invalid ${CONFIG_FILENAME}: bundle.root must name a directory inside the repository, got "${root}"`,
+    );
+  }
 }
 
 /** Load, validate and normalize llmwiki.yaml from a repo root. */
@@ -1036,10 +1125,14 @@ export function loadConfig(repoRoot: string): Config {
     deps[name] = normalizeDep(value);
   }
 
+  // `root` is optional in the schema so this default is live, not dead code.
+  const root = data.bundle?.root ?? DEFAULT_ROOT;
+  validateBundleRoot(root, repoRoot);
+
   return {
     version: 1,
     bundle: {
-      root: data.bundle?.root ?? DEFAULT_ROOT,
+      root,
       name: data.bundle?.name,
       version: data.bundle?.version,
     },
