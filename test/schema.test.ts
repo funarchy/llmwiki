@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { compileSchema, describeError, formatErrors } from '../src/schema.js';
+import { compileSchema, describeError, formatErrors, substantiveErrors } from '../src/schema.js';
 
 describe('compileSchema', () => {
   it('compiles a shipped schema and memoizes it', () => {
@@ -81,5 +81,13 @@ describe('formatErrors', () => {
     const validate = compileSchema('llmwiki.schema.json');
     validate({ version: 2, bundle: {} });
     expect(formatErrors(validate.errors)).toBe('/version must be exactly 1');
+  });
+
+  it('exposes the same filtering to per-error consumers', () => {
+    const validate = compileSchema('llmwiki.schema.json');
+    validate({ version: 1, bundle: {}, deps: { a: { source: 'path' } } });
+    const errors = substantiveErrors(validate.errors);
+    expect(errors).toHaveLength(1);
+    expect(errors[0].keyword).toBe('required');
   });
 });

@@ -63,6 +63,17 @@ describe('check: index-frontmatter', () => {
     expect(indexFrontmatter(contextFor(root))).toHaveLength(1);
   });
 
+  it('flags an empty frontmatter block on the bundle-root index', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '---\n---\n\n# Root\n',
+    });
+    const issues = indexFrontmatter(contextFor(root));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].file).toBe('llmwiki/index.md');
+    expect(issues[0].message).toMatch(/empty frontmatter block/);
+  });
+
   it('reports the check id and error severity', () => {
     const root = makeRepo({
       'llmwiki.yaml': configYaml(),

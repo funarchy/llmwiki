@@ -1,5 +1,5 @@
 import { isConceptPage } from '../../bundle/load.js';
-import { compileSchema, describeError } from '../../schema.js';
+import { compileSchema, describeError, substantiveErrors } from '../../schema.js';
 import type { Check } from '../run.js';
 import type { Issue } from '../../types.js';
 
@@ -33,7 +33,9 @@ export const frontmatterCheck: Check = (ctx) => {
     // An `empty` block validates as {}, which reports each missing required field.
     if (!validate(page.frontmatter ?? {})) {
       // Read errors immediately: the memoized validator is stateful.
-      for (const error of validate.errors ?? []) {
+      // Filtered through the single owner so a future union in the page schema
+      // cannot flood the report with per-branch structural noise.
+      for (const error of substantiveErrors(validate.errors)) {
         issues.push({
           file: page.repoPath,
           check: 'frontmatter',

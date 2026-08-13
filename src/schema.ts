@@ -41,12 +41,24 @@ export function describeError(error: ErrorObject): string {
 /** Keywords describing schema *structure* rather than the user's actual mistake. */
 const STRUCTURAL_KEYWORDS = new Set(['oneOf', 'anyOf', 'allOf', 'if', 'not', 'const']);
 
-export function formatErrors(errors: ErrorObject[] | null | undefined): string {
+/**
+ * Drop errors that describe schema structure rather than a real mistake.
+ *
+ * Inside a `oneOf`, ajv reports every branch's failure — including branches the
+ * user never wrote. Falls back to everything when structure is all there is, so a
+ * bad `version:` still reports something.
+ *
+ * This is the single owner of that filtering. Per-error consumers — the page
+ * frontmatter check emits one `Issue` per error rather than one joined string —
+ * must go through here too, or they reintroduce the noise the moment a schema
+ * grows its first union.
+ */
+export function substantiveErrors(errors: ErrorObject[] | null | undefined): ErrorObject[] {
   const all = errors ?? [];
-  // Inside a `oneOf`, ajv reports every branch's failure — including branches the
-  // user never wrote. Prefer the substantive errors, and fall back to everything
-  // when structure is all there is (so a bad `version:` still reports something).
   const substantive = all.filter((e) => !STRUCTURAL_KEYWORDS.has(e.keyword));
-  const chosen = substantive.length > 0 ? substantive : all;
-  return [...new Set(chosen.map(describeError))].join('; ');
+  return substantive.length > 0 ? substantive : all;
+}
+
+export function formatErrors(errors: ErrorObject[] | null | undefined): string {
+  return [...new Set(substantiveErrors(errors).map(describeError))].join('; ');
 }

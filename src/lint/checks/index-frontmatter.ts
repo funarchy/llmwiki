@@ -31,6 +31,23 @@ export const indexFrontmatter: Check = (ctx) => {
       continue;
     }
 
+    // An empty block on the root index would satisfy "only okf_version" vacuously.
+    // Flag it: the same function rejects an empty block on any other index, and the
+    // concept-page check treats one as actively wrong, so passing it here silently
+    // would be an accident rather than a decision.
+    if (page.frontmatterState === 'empty') {
+      issues.push({
+        file: page.repoPath,
+        check: 'index-frontmatter',
+        severity: 'error',
+        message: 'bundle-root index.md has an empty frontmatter block — remove it, or declare okf_version',
+      });
+      continue;
+    }
+
+    // `?? {}` guards state `'empty'`, where `frontmatter` is null. Unreachable now
+    // that the branch above returns first, but kept so this line cannot throw if the
+    // ordering ever changes.
     const unexpected = Object.keys(page.frontmatter ?? {}).filter((k) => k !== 'okf_version');
     if (unexpected.length > 0) {
       issues.push({
