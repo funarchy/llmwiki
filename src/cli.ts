@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import { lintCommand } from './commands/lint.js';
+import { gapsCommand } from './commands/gaps.js';
 
 /**
  * Run a command body, turning any thrown error into a message plus exit code 1.
@@ -28,6 +29,13 @@ program
   .description("run the mechanical checks over this repository's bundle")
   .action(async () => {
     await runAction(() => lintCommand(process.cwd()));
+  });
+
+program
+  .command('gaps')
+  .description('list unresolved eval cases and pages marked **Stub.**')
+  .action(async () => {
+    await runAction(() => gapsCommand(process.cwd()));
   });
 
 await program.parseAsync();
