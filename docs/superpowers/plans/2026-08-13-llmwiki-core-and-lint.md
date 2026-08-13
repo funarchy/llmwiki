@@ -918,10 +918,24 @@ export function describeError(error: ErrorObject): string {
   return `${error.instancePath || '(root)'} ${error.message}`;
 }
 
+/** Keywords describing schema *structure* rather than the user's actual mistake. */
+const STRUCTURAL_KEYWORDS = new Set(['oneOf', 'anyOf', 'allOf', 'if', 'not', 'const']);
+
 export function formatErrors(errors: ErrorObject[] | null | undefined): string {
-  return (errors ?? []).map(describeError).join('; ');
+  const all = errors ?? [];
+  // Inside a `oneOf`, ajv reports every branch's failure — including branches the
+  // user never wrote. Verified: a dep missing its `path` produced "/deps/a must be
+  // equal to constant; missing required field: path; ... must match exactly one
+  // schema in oneOf", where only the middle clause names the real mistake. Prefer
+  // the substantive errors, and fall back to everything when structure is all
+  // there is (so a bad `version:` still reports something).
+  const substantive = all.filter((e) => !STRUCTURAL_KEYWORDS.has(e.keyword));
+  const chosen = substantive.length > 0 ? substantive : all;
+  return [...new Set(chosen.map(describeError))].join('; ');
 }
 ```
+
+`deps` is the section users hand-edit most — it is how a dependency gets added — so its error messages carry more weight than the rarity of `oneOf` might suggest.
 
 - [ ] **Step 5: Run the test to verify it passes**
 
