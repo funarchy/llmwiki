@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "page.schema.json",
+  "title": "llmwiki page frontmatter",
+  "type": "object",
+  "required": ["type", "title", "description", "sources"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "type": { "type": "string", "enum": ["topic", "meta"] },
+    "title": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 10 },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "sources": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "generated": { "type": "boolean" },
+    "verified": { "type": "string" },
+    "status": { "type": "string" },
+    "stale_after": { "type": "string" }
+  }
+}
