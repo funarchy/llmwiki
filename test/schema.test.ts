@@ -34,6 +34,17 @@ describe('describeError', () => {
     ).toBe('unknown field: nonsense');
   });
 
+  it('lists the allowed values for an enum violation', () => {
+    expect(
+      describeError({
+        keyword: 'enum',
+        instancePath: '/skills',
+        schemaPath: '',
+        params: { allowedValues: ['managed', 'vendored', 'off'] },
+      }),
+    ).toBe('/skills must be one of: managed, vendored, off');
+  });
+
   it('falls back to the instance path and message', () => {
     expect(
       describeError({

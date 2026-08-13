@@ -25,6 +25,12 @@ export function describeError(error: ErrorObject): string {
   if (error.keyword === 'additionalProperties') {
     return `unknown field: ${(error.params as { additionalProperty: string }).additionalProperty}`;
   }
+  // ajv already computed the allowed values; dropping them would leave the user
+  // reading "must be equal to one of the allowed values" with no list.
+  if (error.keyword === 'enum') {
+    const allowed = (error.params as { allowedValues?: unknown[] }).allowedValues ?? [];
+    return `${error.instancePath || '(root)'} must be one of: ${allowed.join(', ')}`;
+  }
   return `${error.instancePath || '(root)'} ${error.message}`;
 }
 

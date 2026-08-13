@@ -9,7 +9,6 @@
     "version": { "const": 1 },
     "bundle": {
       "type": "object",
-      "required": ["root"],
       "additionalProperties": false,
       "properties": {
         "root": { "type": "string", "minLength": 1 },
@@ -31,7 +30,17 @@
               "path": { "type": "string" },
               "url": { "type": "string" },
               "ref": { "type": "string" }
-            }
+            },
+            "allOf": [
+              {
+                "if": { "required": ["source"], "properties": { "source": { "const": "path" } } },
+                "then": { "required": ["path"] }
+              },
+              {
+                "if": { "required": ["source"], "properties": { "source": { "const": "git" } } },
+                "then": { "required": ["url"] }
+              }
+            ]
           }
         ]
       }

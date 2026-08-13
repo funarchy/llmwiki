@@ -25,8 +25,9 @@ describe('findRepoRoot', () => {
 });
 
 describe('loadConfig', () => {
-  it('applies defaults for optional sections', () => {
-    const root = tempRepo('version: 1\nbundle:\n  root: llmwiki\n');
+  it('applies defaults for optional sections, including an omitted bundle root', () => {
+    // `bundle: {}` omits `root`, so this actually exercises the DEFAULT_ROOT fallback.
+    const root = tempRepo('version: 1\nbundle: {}\n');
     const config = loadConfig(root);
     expect(config.bundle.root).toBe(DEFAULT_ROOT);
     expect(config.deps).toEqual({});
@@ -72,5 +73,39 @@ describe('loadConfig', () => {
   it('rejects an unsupported version', () => {
     const root = tempRepo('version: 2\nbundle:\n  root: llmwiki\n');
     expect(() => loadConfig(root)).toThrow(/version/);
+  });
+
+  it('rejects a bundle root that climbs out of the repository', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: ../../etc\n');
+    expect(() => loadConfig(root)).toThrow(/inside the repository/);
+  });
+
+  it('rejects an absolute bundle root', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: /etc\n');
+    expect(() => loadConfig(root)).toThrow(/inside the repository/);
+  });
+
+  it('rejects the repository root itself as the bundle root', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: .\n');
+    expect(() => loadConfig(root)).toThrow(/inside the repository/);
+  });
+
+  it('accepts a nested bundle root', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: docs/knowledge\n');
+    expect(loadConfig(root).bundle.root).toBe('docs/knowledge');
+  });
+
+  it('requires path on a path dep', () => {
+    const root = tempRepo(
+      ['version: 1', 'bundle: {}', 'deps:', '  local:', '    source: path'].join('\n'),
+    );
+    expect(() => loadConfig(root)).toThrow(/path/);
+  });
+
+  it('requires url on a git dep', () => {
+    const root = tempRepo(
+      ['version: 1', 'bundle: {}', 'deps:', '  remote:', '    source: git'].join('\n'),
+    );
+    expect(() => loadConfig(root)).toThrow(/url/);
   });
 });
