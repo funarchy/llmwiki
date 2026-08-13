@@ -60,10 +60,11 @@ the surrounding code:
   remote.
 - **Check 7's message says "inline link or image"**, since images are deliberately
   ordinary links and the old wording left an `![alt](…)` finding unexplained.
-- **The orphans message names the likely cause**: "…if an index does link to it,
-  check that link is repo-root-absolute". Reachability only follows absolute hrefs,
-  so a relative link in an index orphans its child while check 8 reports the link —
-  two issues on two files, previously with nothing connecting them.
+- **The orphans message briefly named relative links as a likely cause, then
+  reverted.** The hint was correct while reachability followed only absolute hrefs.
+  Once `targetOf` began resolving relative links (Task 10, after the real-corpus
+  run), the hint pointed at a cause that can no longer produce an orphan, so it was
+  removed rather than left to mislead.
 - **`pageDirectory(page)` extracted** in `src/bundle/load.ts` and used by both
   `pageDirectories` and check 6, which had been recomputing the same slice.
 
@@ -2362,6 +2363,30 @@ import { isExternal, isRepoAbsolute } from '../../md/links.js';
 import type { Check } from '../run.js';
 import type { Issue, Page } from '../../types.js';
 
+/**
+ * The repo path a link points at, or null when it is not a page reference.
+ *
+ * Relative hrefs are resolved rather than skipped. A relative link violates check
+ * 8's style rule, but it is still a link, and reachability is a property of the
+ * link graph rather than of link style. Skipping them made check 5 report 208
+ * phantom orphans when the finished CLI was first run against a real 210-page
+ * bundle using the older relative convention — one style difference cascading into
+ * hundreds of false findings, which is how a lint gate gets switched off.
+ */
+function targetOf(page: Page, href: string): string | null {
+  if (href === '' || isExternal(href)) return null;
+  if (isRepoAbsolute(href)) return href.slice(1);
+
+  const dir = pageDirectory(page);
+  const parts = dir === '' ? [] : dir.split('/');
+  for (const segment of href.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') parts.pop();
+    else parts.push(segment);
+  }
+  return parts.join('/');
+}
+
 /** Repo paths reachable by walking index files from the bundle root index. */
 function reachable(pages: Page[], rootIndexPath: string): Set<string> {
   const byPath = new Map(pages.map((p) => [p.repoPath, p]));
@@ -2378,9 +2403,8 @@ function reachable(pages: Page[], rootIndexPath: string): Set<string> {
     if (!page?.isIndex) continue;
 
     for (const link of page.links) {
-      if (link.href === '' || isExternal(link.href) || !isRepoAbsolute(link.href)) continue;
-      const target = link.href.slice(1);
-      if (byPath.has(target)) queue.push(target);
+      const target = targetOf(page, link.href);
+      if (target !== null && byPath.has(target)) queue.push(target);
     }
   }
 
