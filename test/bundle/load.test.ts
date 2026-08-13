@@ -1,5 +1,7 @@
+import { symlinkSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { loadBundle, isConceptPage } from '../../src/bundle/load.js';
+import { loadBundle, isConceptPage, pageDirectories } from '../../src/bundle/load.js';
 import { makeRepo, configYaml, page } from '../helpers/fixture.js';
 
 describe('loadBundle', () => {
@@ -97,6 +99,20 @@ describe('loadBundle', () => {
     expect(() => loadBundle(root, 'llmwiki')).toThrow(/llmwiki/);
   });
 
+  it('skips a dangling symlink instead of crashing', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/real.md': page('Real'),
+    });
+    symlinkSync(join(root, 'llmwiki', 'gone.md'), join(root, 'llmwiki', 'dangling.md'));
+    const bundle = loadBundle(root, 'llmwiki');
+    expect(bundle.pages.map((p) => p.repoPath).sort()).toEqual([
+      'llmwiki/index.md',
+      'llmwiki/real.md',
+    ]);
+  });
+
   it('loads a bundle at a nested root', () => {
     const root = makeRepo({
       'llmwiki.yaml': configYaml('docs/knowledge'),
@@ -124,5 +140,23 @@ describe('isConceptPage', () => {
     expect(isConceptPage(byPath('llmwiki/index.md'), bundle)).toBe(false);
     expect(isConceptPage(byPath('llmwiki/README.md'), bundle)).toBe(false);
     expect(isConceptPage(byPath('llmwiki/mongo.md'), bundle)).toBe(true);
+  });
+});
+
+describe('pageDirectories', () => {
+  it('lists the directory of every page, including the bundle root itself', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/root-page.md': page('Root page'),
+      'llmwiki/data/nested/index.md': '# Nested\n',
+      'llmwiki/data/nested/deep.md': page('Deep'),
+    });
+    // The bundle root must appear as `llmwiki`, not the empty string — Task 11
+    // duplicates this slicing logic, so an off-by-one there would otherwise be silent.
+    expect(pageDirectories(loadBundle(root, 'llmwiki'))).toEqual([
+      'llmwiki',
+      'llmwiki/data/nested',
+    ]);
   });
 });

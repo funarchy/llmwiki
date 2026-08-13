@@ -26,8 +26,11 @@ export function page(title: string, extra = ''): string {
   return [
     '---',
     'type: topic',
-    `title: ${title}`,
-    `description: What ${title} is and how to use it here`,
+    // Quoted, not interpolated raw: eight test files import this helper, and a title
+    // containing `:` or `[` would otherwise silently produce different YAML structure
+    // rather than a clear failure — a confusing break far from its cause.
+    `title: ${JSON.stringify(title)}`,
+    `description: ${JSON.stringify(`What ${title} is and how to use it here`)}`,
     'sources:',
     '  - src/example.ts',
     '---',

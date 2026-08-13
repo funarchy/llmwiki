@@ -16,7 +16,21 @@ function walk(dir: string): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry.startsWith('.')) continue;
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
+
+    let isDir: boolean;
+    try {
+      isDir = statSync(full).isDirectory();
+    } catch {
+      // A dangling symlink. `mode: link` vendoring (§7.2) makes symlinks inside a
+      // bundle a designed feature, so one orphaned by a pruned `node_modules` is an
+      // ordinary accident — and a linter must always terminate with a report, never
+      // a stack trace. Treat it as absent from the model; check 4 still flags any
+      // page that links to the missing target, because `existsSync` returns false
+      // for a dangling symlink.
+      continue;
+    }
+
+    if (isDir) {
       if (EXCLUDED_DIRS.has(entry)) continue;
       out.push(...walk(full));
     } else if (entry.endsWith('.md')) {
@@ -26,6 +40,12 @@ function walk(dir: string): string[] {
   return out;
 }
 
+/**
+ * Walk a bundle root into the in-memory model every lint check consumes.
+ *
+ * Precondition: `root` is already validated. `loadConfig` clamps it to stay inside
+ * the repository; a caller bypassing `loadConfig` inherits that responsibility.
+ */
 export function loadBundle(repoRoot: string, root: string): Bundle {
   const absRoot = join(repoRoot, root);
   if (!existsSync(absRoot)) {
