@@ -165,12 +165,29 @@ every consumer, surfacing later as a generic broken link rather than as the
 un-rewritten path it is. Requiring the reference form keeps images inside the one
 mechanism that gets rewritten, and keeps §3.3's single invariant single.
 
-Two known limitations of the link scanner, accepted rather than solved: an
+Three known limitations of the link scanner, accepted rather than solved. An
 **unclosed** code fence is not treated as code, so link-shaped text after it is
-scanned as prose; and a reference definition indented four or more spaces is
-ignored, since at that indentation CommonMark reads it as an indented code block
-anyway. Neither is worth a full CommonMark parser for a corpus this project's own
-tooling writes.
+scanned as prose. A reference definition indented four or more spaces is ignored,
+since at that indentation CommonMark reads it as an indented code block anyway.
+And a fence containing a **nested fence of the same style** closes early on the
+inner delimiter, so links in the outer block can leak — the scanner does not
+implement CommonMark's rule that a closing fence must be at least as long as its
+opening, which means the usual author workaround of a longer outer fence does not
+help either. That last one is the fence-length rule, and implementing it is the
+known fix should meta-documentation about fenced blocks ever make it bite.
+
+None of the three is worth a full CommonMark parser for a corpus this project's
+own tooling writes.
+
+**Path resolution is clamped lexically, deliberately not by `realpath`.** A
+repo-root-absolute href that resolves outside the bundle root is rejected, which
+is a correctness rule before it is a safety one: `/../../etc/passwd` resolves to a
+real file on most hosts, and a linter that merely tested existence would call that
+a working link. But the clamp compares resolved *lexical* paths only. Resolving
+symlinks would reject a legitimate case — `mode: link` (§7.2) vendors dependency
+trees as symlinks on purpose, so an href pointing through one to content elsewhere
+on disk is the intended behaviour, not an escape. Anyone tempted to "harden" this
+to `realpath` would break link mode.
 
 ## 4. Bundle identity: no new manifest file
 
