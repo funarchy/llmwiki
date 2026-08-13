@@ -51,7 +51,7 @@ Tests mirror `src/` under `test/`, plus `test/fixtures/` for on-disk bundle tree
 
 1. **`_meta/` is excluded from every page-format check.** It holds `page.schema.json` and eval cases, whose frontmatter (`question`, `status`) is not concept-page frontmatter. `gaps` reads `_meta/eval/` directly rather than through the bundle model. Check 6 also skips it.
 2. **Repo root is the directory containing `llmwiki.yaml`**, located by walking up from the current directory. No git dependency, and link resolution is therefore unaffected by the submodule caveat in §16.8.
-3. **`README.md` at the bundle root is exempt** from concept-page checks, so a human-facing readme can live in the bundle without frontmatter.
+3. **`README.md` at the bundle root is exempt** from concept-page checks, so a human-facing readme can live in the bundle without frontmatter. **The exemption is depth-limited on purpose.** A bundle holds exactly two kinds of file — `index.md` routers and concept pages — with one narrow exception at the front door, mirroring the universal top-level-README convention. A subdirectory already has its human and navigational entry point in its `index.md`, so a second non-conformant file there is precisely the drift the linter exists to catch. Users who reflexively drop a README into a subdirectory will be surprised; that surprise is the check working.
 
 Two deliberate deviations from §15's testing plan:
 
@@ -1211,8 +1211,11 @@ export function page(title: string, extra = ''): string {
   return [
     '---',
     'type: topic',
-    `title: ${title}`,
-    `description: What ${title} is and how to use it here`,
+    // Quoted, not interpolated raw: eight test files import this helper, and a title
+    // containing `:` or `[` would otherwise silently produce different YAML structure
+    // rather than a clear failure — a confusing break far from its cause.
+    `title: ${JSON.stringify(title)}`,
+    `description: ${JSON.stringify(`What ${title} is and how to use it here`)}`,
     'sources:',
     '  - src/example.ts',
     '---',
@@ -1285,6 +1288,32 @@ describe('loadBundle', () => {
     expect(mongo.links.map((l) => l.href)).toEqual(['/llmwiki/index.md']);
   });
 
+  it('records the frontmatter state per page', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/good.md': page('Good'),
+      'llmwiki/broken.md': '---\ntitle: [unclosed\n---\n\nBody.\n',
+    });
+    const bundle = loadBundle(root, 'llmwiki');
+    const byPath = (p: string) => bundle.pages.find((x) => x.repoPath === p)!;
+    expect(byPath('llmwiki/index.md').frontmatterState).toBe('absent');
+    expect(byPath('llmwiki/good.md').frontmatterState).toBe('parsed');
+    expect(byPath('llmwiki/broken.md').frontmatterState).toBe('invalid');
+  });
+
+  it('reports link line numbers relative to the whole file, not the body', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/mongo.md': page('Mongo', '\n[data]: /llmwiki/index.md\n'),
+    });
+    const bundle = loadBundle(root, 'llmwiki');
+    const mongo = bundle.pages.find((p) => p.repoPath === 'llmwiki/mongo.md')!;
+    // The fixture's frontmatter occupies lines 1-7, so the link cannot be on line 1-2.
+    expect(mongo.links[0].line).toBeGreaterThan(7);
+  });
+
   it('ignores non-markdown files and dotfiles', () => {
     const root = makeRepo({
       'llmwiki.yaml': configYaml(),
@@ -1296,9 +1325,54 @@ describe('loadBundle', () => {
     expect(bundle.pages.map((p) => p.repoPath)).toEqual(['llmwiki/index.md']);
   });
 
+  it('skips a dangling symlink instead of crashing', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/real.md': page('Real'),
+    });
+    symlinkSync(join(root, 'llmwiki', 'gone.md'), join(root, 'llmwiki', 'dangling.md'));
+    const bundle = loadBundle(root, 'llmwiki');
+    expect(bundle.pages.map((p) => p.repoPath).sort()).toEqual([
+      'llmwiki/index.md',
+      'llmwiki/real.md',
+    ]);
+  });
+
   it('throws when the bundle root does not exist', () => {
     const root = makeRepo({ 'llmwiki.yaml': configYaml() });
     expect(() => loadBundle(root, 'llmwiki')).toThrow(/llmwiki/);
+  });
+
+  it('loads a bundle at a nested root', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml('docs/knowledge'),
+      'docs/knowledge/index.md': '# Root\n',
+      'docs/knowledge/mongo.md': page('Mongo'),
+    });
+    const bundle = loadBundle(root, 'docs/knowledge');
+    expect(bundle.pages.map((p) => p.repoPath).sort()).toEqual([
+      'docs/knowledge/index.md',
+      'docs/knowledge/mongo.md',
+    ]);
+  });
+});
+
+describe('pageDirectories', () => {
+  it('lists the directory of every page, including the bundle root itself', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/root-page.md': page('Root page'),
+      'llmwiki/data/nested/index.md': '# Nested\n',
+      'llmwiki/data/nested/deep.md': page('Deep'),
+    });
+    // The bundle root must appear as `llmwiki`, not the empty string — Task 11
+    // duplicates this slicing logic, so an off-by-one there would otherwise be silent.
+    expect(pageDirectories(loadBundle(root, 'llmwiki'))).toEqual([
+      'llmwiki',
+      'llmwiki/data/nested',
+    ]);
   });
 });
 
@@ -1345,7 +1419,21 @@ function walk(dir: string): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry.startsWith('.')) continue;
     const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
+
+    let isDir: boolean;
+    try {
+      isDir = statSync(full).isDirectory();
+    } catch {
+      // A dangling symlink. `mode: link` vendoring (§7.2) makes symlinks inside a
+      // bundle a designed feature, so one orphaned by a pruned `node_modules` is an
+      // ordinary accident — and a linter must always terminate with a report, never
+      // a stack trace. Treat it as absent from the model; check 4 still flags any
+      // page that links to the missing target, because `existsSync` returns false
+      // for a dangling symlink.
+      continue;
+    }
+
+    if (isDir) {
       if (EXCLUDED_DIRS.has(entry)) continue;
       out.push(...walk(full));
     } else if (entry.endsWith('.md')) {
