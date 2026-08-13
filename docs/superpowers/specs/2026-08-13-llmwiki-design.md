@@ -1,7 +1,8 @@
 # llmwiki — design
 
 **Date:** 2026-08-13
-**Status:** approved design, not yet implemented
+**Status:** approved. Plan 1 (bundle core, lint, `init`/`lint`/`gaps`) is
+implemented; the composition layer (plan 2) and skillset (plan 3) are not.
 
 ## 1. What llmwiki is
 
