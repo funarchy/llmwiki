@@ -10,6 +10,15 @@ export interface Frontmatter {
   [key: string]: unknown;
 }
 
+/**
+ * What a page's frontmatter delimiter block contained.
+ * - `absent`  — no delimited block: no opening `---`, or it was never closed
+ * - `empty`   — a block was present but held nothing
+ * - `invalid` — a block was present but its YAML would not parse, or was not a mapping
+ * - `parsed`  — a block was present and yielded a mapping
+ */
+export type FrontmatterState = 'absent' | 'empty' | 'invalid' | 'parsed';
+
 /** A link found in a page body. */
 export interface Link {
   /** Ref name for a reference definition; undefined for an inline link. */
@@ -28,6 +37,7 @@ export interface Page {
   repoPath: string;
   isIndex: boolean;
   frontmatter: Frontmatter | null;
+  frontmatterState: FrontmatterState;
   body: string;
   links: Link[];
 }
