@@ -11,11 +11,16 @@ dependency layer (`add`, `install`, vendoring) and the agent skillset are next.
 
 ## Quick start
 
+Not yet on npm — run from a checkout:
+
 ```bash
-npx llmwiki init      # scaffold llmwiki/ and llmwiki.yaml
-npx llmwiki lint      # hold the bundle to the schema
-npx llmwiki gaps      # list unresolved eval cases and stub pages
+npm install && npm run build
+node dist/cli.js init      # scaffold llmwiki/ and llmwiki.yaml
+node dist/cli.js lint      # hold the bundle to the schema
+node dist/cli.js gaps      # list unresolved eval cases and stub pages
 ```
+
+Once published these become `npx llmwiki init` / `lint` / `gaps`.
 
 ## Design
 

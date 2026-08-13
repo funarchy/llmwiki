@@ -27,7 +27,11 @@ export function collectGaps(repoRoot: string, bundleRoot: string): Gaps {
   const evalGaps: EvalGap[] = [];
 
   if (existsSync(evalDir)) {
-    for (const entry of readdirSync(evalDir).sort()) {
+    const entries = readdirSync(evalDir, { withFileTypes: true })
+      .filter((dirent) => dirent.isFile())
+      .map((dirent) => dirent.name)
+      .sort();
+    for (const entry of entries) {
       if (!entry.endsWith('.md') || entry === 'index.md') continue;
       const { frontmatter } = parseFrontmatter(readFileSync(join(evalDir, entry), 'utf-8'));
       if (!frontmatter || frontmatter.status !== 'to_resolve') continue;
@@ -58,7 +62,7 @@ export function formatGaps(gaps: Gaps): string {
     lines.push('(none)');
   } else {
     gaps.evalGaps.forEach((gap, i) => {
-      lines.push(`${i + 1}. ${gap.question}`);
+      lines.push(`${i + 1}. ${gap.question.replace(/\s+/g, ' ')}`);
       if (gap.pagesNeeded.length === 0) {
         lines.push('   (no new pages needed — an existing page needs updating, or re-run the eval)');
       } else {

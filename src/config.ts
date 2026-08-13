@@ -39,7 +39,7 @@ function normalizeDep(value: unknown): DepSpec {
  * deliberate too, since a bundle at the repo root would make the loader walk
  * `node_modules/` and every other non-bundle directory.
  */
-function validateBundleRoot(root: string, repoRoot: string): void {
+export function validateBundleRoot(root: string, repoRoot: string): void {
   const base = resolve(repoRoot);
   const abs = resolve(base, root);
   if (abs === base || !abs.startsWith(base + sep)) {

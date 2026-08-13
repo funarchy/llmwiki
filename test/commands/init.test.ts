@@ -92,7 +92,9 @@ describe('runInit', () => {
     runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: true, title: 'Demo' });
     const hook = join(root, '.git', 'hooks', 'pre-commit');
     expect(existsSync(hook)).toBe(true);
-    expect(readFileSync(hook, 'utf-8')).toContain('llmwiki lint');
+    const hookContent = readFileSync(hook, 'utf-8');
+    expect(hookContent).toContain('node_modules/.bin/llmwiki');
+    expect(hookContent).toContain('lint');
   });
 
   it('reports an existing docs/ directory without touching it', () => {
@@ -107,5 +109,21 @@ describe('runInit', () => {
     const result = runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: true, title: 'Demo' });
     expect(readFileSync(join(root, '.git', 'hooks', 'pre-commit'), 'utf-8')).toContain('echo mine');
     expect(result.hookSkipped).toBe(true);
+  });
+
+  it('rejects a bundle root that escapes the repository', () => {
+    const root = makeRepo({});
+    expect(() =>
+      runInit({ repoRoot: root, bundleRoot: '../escaped', installHook: false, title: 'Demo' }),
+    ).toThrow();
+    expect(existsSync(join(root, '..', 'escaped'))).toBe(false);
+  });
+
+  it('rejects a bundle root that YAML would reinterpret', () => {
+    const root = makeRepo({});
+    expect(() =>
+      runInit({ repoRoot: root, bundleRoot: 'my: bundle', installHook: false, title: 'Demo' }),
+    ).toThrow();
+    expect(existsSync(join(root, 'llmwiki.yaml'))).toBe(false);
   });
 });

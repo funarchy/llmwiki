@@ -1,6 +1,6 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { CONFIG_FILENAME, DEFAULT_ROOT } from '../config.js';
+import { CONFIG_FILENAME, DEFAULT_ROOT, validateBundleRoot } from '../config.js';
 import { packageRoot } from '../paths.js';
 import { ask, confirm } from '../prompt.js';
 
@@ -73,6 +73,15 @@ export function runInit(options: InitOptions): InitResult {
 
   if (existsSync(join(repoRoot, CONFIG_FILENAME))) {
     throw new Error(`${CONFIG_FILENAME} already exists in ${repoRoot} — nothing to initialize.`);
+  }
+
+  validateBundleRoot(bundleRoot, repoRoot);
+  // The config is written by string template, and a root that needs quoting is a
+  // root nobody intended. Reject rather than quote.
+  if (!/^[A-Za-z0-9._\/-]+$/.test(bundleRoot)) {
+    throw new Error(
+      `Invalid bundle root "${bundleRoot}" — use letters, digits, dots, hyphens, underscores and slashes.`,
+    );
   }
 
   const absBundle = join(repoRoot, bundleRoot);

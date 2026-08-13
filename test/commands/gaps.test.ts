@@ -78,6 +78,17 @@ describe('collectGaps', () => {
     });
     expect(collectGaps(root, 'llmwiki').stubs).toEqual([]);
   });
+
+  it('skips a directory in _meta/eval whose name ends in .md instead of throwing EISDIR', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/_meta/eval/weird.md/inner.md': 'not an eval case',
+      'llmwiki/_meta/eval/real.md': evalCase('Real question?', 'to_resolve'),
+    });
+    const gaps = collectGaps(root, 'llmwiki');
+    expect(gaps.evalGaps).toEqual([{ question: 'Real question?', pagesNeeded: [] }]);
+  });
 });
 
 describe('formatGaps', () => {
@@ -100,5 +111,14 @@ describe('formatGaps', () => {
   it('notes when a gap needs no new pages', () => {
     const out = formatGaps({ evalGaps: [{ question: 'Q?', pagesNeeded: [] }], stubs: [] });
     expect(out).toMatch(/no new pages needed/);
+  });
+
+  it('collapses whitespace in a question when rendering', () => {
+    const out = formatGaps({
+      evalGaps: [{ question: 'How do I\n  add a drill?', pagesNeeded: [] }],
+      stubs: [],
+    });
+    expect(out).toContain('1. How do I add a drill?');
+    expect(out).not.toMatch(/add\s{2,}a/);
   });
 });

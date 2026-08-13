@@ -30,6 +30,12 @@ describe('ask', () => {
     await ask('Bundle root', 'llmwiki', { stdin, stdout });
     expect(chunks.join('')).toContain('llmwiki');
   });
+
+  it('resolves to the fallback when stdin ends without an answer', async () => {
+    const stdin = Readable.from([]) as unknown as NodeJS.ReadableStream;
+    const stdout = streams('').stdout;
+    await expect(ask('Bundle root', 'llmwiki', { stdin, stdout })).resolves.toBe('llmwiki');
+  }, 2000);
 });
 
 describe('confirm', () => {
@@ -44,4 +50,10 @@ describe('confirm', () => {
     const { stdin, stdout } = streams('\n');
     await expect(confirm('Install hook?', false, { stdin, stdout })).resolves.toBe(false);
   });
+
+  it('resolves to the fallback when stdin ends without an answer', async () => {
+    const stdin = Readable.from([]) as unknown as NodeJS.ReadableStream;
+    const stdout = streams('').stdout;
+    await expect(confirm('Install hook?', true, { stdin, stdout })).resolves.toBe(true);
+  }, 2000);
 });
