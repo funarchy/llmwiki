@@ -86,7 +86,15 @@ repo-relative form (`src/pms/runtime.ts`) rather than the leading-slash form
 that body links use (§3.3). Nothing resolves or rewrites them (§7.5).
 
 Page types are OKF's. llmwiki uses `topic` (answers one question — the default)
-and `meta` (about the bundle itself; lives in `_meta/`).
+and `meta` (about the bundle itself).
+
+A `meta` page lives anywhere the loader walks — typically the bundle root — and
+is an ordinary concept page in every other respect, held to the same schema.
+It specifically does **not** live in `_meta/`. That directory holds tooling
+only: the page schema, and eval cases whose frontmatter (`question`, `status`)
+is not concept-page frontmatter at all. The loader therefore excludes `_meta/`
+outright, so a `meta` page placed there would not be rejected — it would be
+invisible to every check, which is worse.
 
 ### 3.2 Index files
 

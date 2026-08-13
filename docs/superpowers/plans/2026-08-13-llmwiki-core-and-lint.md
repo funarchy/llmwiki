@@ -50,6 +50,8 @@ Tests mirror `src/` under `test/`, plus `test/fixtures/` for on-disk bundle tree
 ## Spec clarifications this plan settles
 
 1. **`_meta/` is excluded from every page-format check.** It holds `page.schema.json` and eval cases, whose frontmatter (`question`, `status`) is not concept-page frontmatter. `gaps` reads `_meta/eval/` directly rather than through the bundle model. Check 6 also skips it.
+
+   **`_meta/` is tooling-only — `type: meta` pages do not live there.** The page schema permits `type: meta` because that is OKF's own vocabulary, and dropping it would make llmwiki reject a page type the spec it implements considers valid. But because the loader excludes `_meta/` outright, a meta page placed there is not rejected — it is invisible to every check. Design spec §3.1 therefore locates meta pages anywhere the loader walks, typically the bundle root, as ordinary concept pages.
 2. **Repo root is the directory containing `llmwiki.yaml`**, located by walking up from the current directory. No git dependency, and link resolution is therefore unaffected by the submodule caveat in §16.8.
 3. **`README.md` at the bundle root is exempt** from concept-page checks, so a human-facing readme can live in the bundle without frontmatter. **The exemption is depth-limited on purpose.** A bundle holds exactly two kinds of file — `index.md` routers and concept pages — with one narrow exception at the front door, mirroring the universal top-level-README convention. A subdirectory already has its human and navigational entry point in its `index.md`, so a second non-conformant file there is precisely the drift the linter exists to catch. Users who reflexively drop a README into a subdirectory will be surprised; that surprise is the check working.
 
@@ -921,17 +923,29 @@ export function describeError(error: ErrorObject): string {
 /** Keywords describing schema *structure* rather than the user's actual mistake. */
 const STRUCTURAL_KEYWORDS = new Set(['oneOf', 'anyOf', 'allOf', 'if', 'not', 'const']);
 
-export function formatErrors(errors: ErrorObject[] | null | undefined): string {
+/**
+ * Drop errors that describe schema structure rather than a real mistake.
+ *
+ * Inside a `oneOf`, ajv reports every branch's failure — including branches the
+ * user never wrote. Verified: a dep missing its `path` produced "/deps/a must be
+ * equal to constant; missing required field: path; ... must match exactly one
+ * schema in oneOf", where only the middle clause names the real mistake. Falls
+ * back to everything when structure is all there is, so a bad `version:` still
+ * reports something.
+ *
+ * This is the single owner of that filtering. Per-error consumers — the page
+ * frontmatter check emits one `Issue` per error rather than one joined string —
+ * must go through here too, or they reintroduce the noise the moment a schema
+ * grows its first union.
+ */
+export function substantiveErrors(errors: ErrorObject[] | null | undefined): ErrorObject[] {
   const all = errors ?? [];
-  // Inside a `oneOf`, ajv reports every branch's failure — including branches the
-  // user never wrote. Verified: a dep missing its `path` produced "/deps/a must be
-  // equal to constant; missing required field: path; ... must match exactly one
-  // schema in oneOf", where only the middle clause names the real mistake. Prefer
-  // the substantive errors, and fall back to everything when structure is all
-  // there is (so a bad `version:` still reports something).
   const substantive = all.filter((e) => !STRUCTURAL_KEYWORDS.has(e.keyword));
-  const chosen = substantive.length > 0 ? substantive : all;
-  return [...new Set(chosen.map(describeError))].join('; ');
+  return substantive.length > 0 ? substantive : all;
+}
+
+export function formatErrors(errors: ErrorObject[] | null | undefined): string {
+  return [...new Set(substantiveErrors(errors).map(describeError))].join('; ');
 }
 ```
 
@@ -2015,7 +2029,24 @@ export const indexFrontmatter: Check = (ctx) => {
       continue;
     }
 
-    const unexpected = Object.keys(page.frontmatter).filter((k) => k !== 'okf_version');
+    // An empty block on the root index would satisfy "only okf_version" vacuously.
+    // Flag it: the same function rejects an empty block on any other index, and the
+    // concept-page check treats one as actively wrong, so passing it here silently
+    // would be an accident rather than a decision.
+    if (page.frontmatterState === 'empty') {
+      issues.push({
+        file: page.repoPath,
+        check: 'index-frontmatter',
+        severity: 'error',
+        message: 'bundle-root index.md has an empty frontmatter block — remove it, or declare okf_version',
+      });
+      continue;
+    }
+
+    // `?? {}` guards state `'empty'`, where `frontmatter` is null. Unreachable now
+    // that the branch above returns first, but kept so this line cannot throw if the
+    // ordering ever changes.
+    const unexpected = Object.keys(page.frontmatter ?? {}).filter((k) => k !== 'okf_version');
     if (unexpected.length > 0) {
       issues.push({
         file: page.repoPath,
