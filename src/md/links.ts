@@ -1,15 +1,19 @@
-import { join } from 'node:path';
+import { resolve, sep } from 'node:path';
 import type { Link } from '../types.js';
 
-const FENCE_RE = /^```[\s\S]*?^```/gm;
+const BACKTICK_FENCE_RE = /^[ \t]*```[\s\S]*?^[ \t]*```/gm;
+const TILDE_FENCE_RE = /^[ \t]*~~~[\s\S]*?^[ \t]*~~~/gm;
 const INLINE_CODE_RE = /`{1,2}[^`\n]*`{1,2}/g;
 const INLINE_LINK_RE = /\[([^\]]*)\]\(\s*([^)\s]+)/g;
-const REF_DEF_RE = /^\[([^\]]+)\]:\s*(\S+)/;
+const REF_DEF_RE = /^ {0,3}\[([^\]]+)\]:\s*(\S+)/;
 
 /** Blank out code so example links are never treated as real, preserving line count. */
 export function stripCode(text: string): string {
   const blank = (m: string) => m.replace(/[^\n]/g, ' ');
-  return text.replace(FENCE_RE, blank).replace(INLINE_CODE_RE, blank);
+  return text
+    .replace(BACKTICK_FENCE_RE, blank)
+    .replace(TILDE_FENCE_RE, blank)
+    .replace(INLINE_CODE_RE, blank);
 }
 
 function stripFragment(href: string): string {
@@ -59,7 +63,17 @@ export function isRepoAbsolute(href: string): boolean {
   return href.startsWith('/');
 }
 
-/** Resolve a repo-root-absolute href to an absolute path on disk. */
-export function resolveRepoAbsolute(repoRoot: string, href: string): string {
-  return join(repoRoot, href.slice(1));
+/**
+ * Resolve a repo-root-absolute href to an absolute path on disk, or null when it
+ * escapes the repository root.
+ *
+ * The null case is a correctness matter, not just a safety one: `/../../etc/passwd`
+ * resolves to a real file on the host, so a naive join + existsSync would report it
+ * as a perfectly good link. It is not — there is no such path in the repository.
+ */
+export function resolveRepoAbsolute(repoRoot: string, href: string): string | null {
+  const root = resolve(repoRoot);
+  const target = resolve(root, href.slice(1));
+  if (target !== root && !target.startsWith(root + sep)) return null;
+  return target;
 }
