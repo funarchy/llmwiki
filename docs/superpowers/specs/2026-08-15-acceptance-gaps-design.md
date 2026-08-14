@@ -107,8 +107,12 @@ index, following the case-file shape in `skills/wiki-eval/SKILL.md`:
   composition, skills, and one cross-subtree question. Each is resolved
   by a *fresh navigator subagent run*: the navigator gets the question
   and the instruction to start at `llmwiki/index.md` and follow links
-  only — no grep, no outside knowledge. The recorded case carries the
-  real `navigation` path and `answer-must-mention` terms from that run.
+  only — no grep, no outside knowledge. Navigators run on the cheapest
+  model (Haiku): if the cheapest model reaches a cited answer, the
+  structure is doing the work — a frontier model can paper over a bad
+  bundle. The recorded case carries the real `navigation` path and
+  `answer-must-mention` terms from that run, and its body notes the
+  navigator model so future regression runs compare like with like.
 - **One `to_resolve` case**: a question the bundle genuinely cannot
   answer today, with `pages-needed` filled in, so `llmwiki gaps` prints
   a real gap.
