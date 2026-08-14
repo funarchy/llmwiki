@@ -42,6 +42,7 @@
   "files": [
     "dist",
     "schemas",
-    "templates"
+    "templates",
+    ".claude-plugin"
   ]
 }
