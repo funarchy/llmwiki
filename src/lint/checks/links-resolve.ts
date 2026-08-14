@@ -42,19 +42,31 @@ export const linksResolve: Check = (ctx) => {
         continue;
       }
 
-      // `existsSync` first: it is false for a dangling symlink, where the directory
-      // entry exists but the target does not.
+      // On a case-sensitive filesystem `existsSync` is already false for a
+      // wrong-case link, so the case diagnostic must be produced here too — not
+      // only in the case-insensitive branch below — or it is unreachable on
+      // Linux. A dangling symlink sits in the listing under its exact name and
+      // stays a plain broken link.
       if (!existsSync(target)) {
+        const name = basename(target);
+        const entries = entriesOf(dirname(target));
+        const actual = entries.has(name)
+          ? undefined
+          : [...entries].find((e) => e.toLowerCase() === name.toLowerCase());
         issues.push({
           file: page.repoPath,
           line: link.line,
           check: 'links-resolve',
           severity: 'error',
-          message: `broken link: ${link.href}`,
+          message: actual
+            ? `link case does not match the file on disk: ${link.href} (found ${actual})`
+            : `broken link: ${link.href}`,
         });
         continue;
       }
 
+      // Case-insensitive filesystems: `existsSync` is true even for a wrong-case
+      // link; only the case-preserved directory listing can tell.
       const name = basename(target);
       const entries = entriesOf(dirname(target));
       if (!entries.has(name)) {

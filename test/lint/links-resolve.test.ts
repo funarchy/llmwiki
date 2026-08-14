@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { symlinkSync } from 'node:fs';
+import { join } from 'node:path';
 import { linksResolve } from '../../src/lint/checks/links-resolve.js';
 import { makeRepo, configYaml, page } from '../helpers/fixture.js';
 import { contextFor } from '../helpers/lint.js';
@@ -92,6 +94,17 @@ describe('check: links-resolve', () => {
     const issues = linksResolve(contextFor(root));
     expect(issues).toHaveLength(1);
     expect(issues[0].file).toBe('llmwiki/index.md');
+  });
+
+  it('reports a dangling symlink as a broken link, not a case problem', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n\n* [Gone](/llmwiki/gone.md) - gone\n',
+    });
+    symlinkSync(join(root, 'llmwiki', 'missing.md'), join(root, 'llmwiki', 'gone.md'));
+    const issues = linksResolve(contextFor(root));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].message).toMatch(/broken link/);
   });
 
   it('flags a link whose case does not match the file on disk', () => {
