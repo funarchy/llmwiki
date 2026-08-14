@@ -228,6 +228,16 @@ git commit -m "docs: AGENTS.md carries instructions plus the knowledge pointer (
 
 ### Task 4: Eval suite — six cases, five navigator-verified
 
+> **Amendment (2026-08-15, during execution):** seven cases shipped, not
+> six. The intended-gap question (producer packaging) came back FOUND —
+> but only via a 17-page full-bundle walk, recorded `satisfied` with
+> that navigability smell noted in its body. The `to_resolve` case
+> became a gap actually discovered during the runs: the `gaps` command
+> has no bundle page (`pages-needed: llmwiki/commands/gaps.md`). Also,
+> Step 5's negative hook check in Task 2 was too weak as written (a
+> stray text line violates no lint check); executed with an inline
+> broken link instead, which trips checks 4 and 7.
+
 **Files:**
 - Create: `llmwiki/_meta/eval/how-does-lint-tamper-proof-vendored-knowledge.md`
 - Create: `llmwiki/_meta/eval/what-distinguishes-deps-from-vendor.md`
