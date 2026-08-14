@@ -51,6 +51,28 @@
 
 ---
 
+## Execution amendments
+
+Recorded during execution; none changes behaviour a re-executor could get wrong
+by copying the surrounding code:
+
+- **The G1–G3 review hunted the check-9 false-accusation class specifically and
+  found none.** CRLF, missing-trailing-newline and lone-`\r` producer content all
+  re-derive byte-identically. That property is what makes check 9 trustworthy.
+- **`mapHref` covers the bare `/deps` and `/vendor` forms** (`rest === '/deps'`),
+  not only the slash-suffixed ones — the bare `/wiki/vendor` form previously
+  mis-mapped silently into a guaranteed-dangling path.
+- **An unclosed fence adds a vendor-time warning** rather than a rewrite skip:
+  skipping would trade mutated code display for dangling links. Parity heuristic
+  over `^[ \t]*(```|~~~)` markers.
+- **Accepted limitations, spec-note only:** an uppercase `.MD` page is copied raw
+  and un-rewritten (it is equally invisible to the producer's own loader, so it
+  was already broken upstream); lone-`\r` line endings collapse into one line for
+  the rewriter (deterministic, extinct in practice). `readLock` names the lock
+  file on malformed JSON.
+- **Bare `/wiki` maps to the directory link** `/root/deps/<name>` — harmless, the
+  directory exists post-vendor; recorded as a decision rather than changed.
+
 ## Task 1: Types, lock module
 
 **Files:** modify `src/types.ts`; create `src/lock.ts`; test `test/lock.test.ts`.
