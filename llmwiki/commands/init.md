@@ -29,11 +29,13 @@ suggestion (or the `llmwiki` default) without prompting; interactively,
 **The pre-commit hook** (`templates/pre-commit.sh`) is a real git hook,
 installed at `.git/hooks/pre-commit` unless one is already present (in which
 case it's left untouched and `init` says so). It is deliberately
-non-blocking when llmwiki isn't actually usable: it checks for
-`node_modules/.bin/llmwiki` first and, if that binary isn't there, prints a
-skip message and exits 0 rather than failing every commit in a repository
-where `llmwiki` isn't installed as a dependency. Only when the binary is
-present does it `exec llmwiki lint`.
+non-blocking when llmwiki isn't actually usable: it runs
+`node_modules/.bin/llmwiki lint` when that binary exists, falls back to
+`node dist/cli.js lint` when the repository is a built checkout of
+llmwiki itself (guarded by the package name, so a consumer's own
+`dist/cli.js` is never executed), and otherwise prints a skip message
+and exits 0 rather than failing every commit in a repository where
+llmwiki isn't installed.
 
 **Finding a `docs/` directory**: `init` reports it
 (`Found a docs/ directory. Migrating it is the wiki-ingest skill's job —
