@@ -6,6 +6,7 @@ import { initCommand } from './commands/init.js';
 import { installCommand } from './commands/install.js';
 import { addCommand } from './commands/add.js';
 import { rmCommand } from './commands/rm.js';
+import { updateCommand } from './commands/update.js';
 
 /**
  * Run a command body, turning any thrown error into a message plus exit code 1.
@@ -64,6 +65,15 @@ program
   .description('remove a dependency and re-sync (a bundle still required transitively stays vendored)')
   .action(async (pkg: string) => {
     await runAction(() => rmCommand(process.cwd(), pkg));
+  });
+
+program
+  .command('update [pkg]')
+  .description(
+    're-resolve and report the knowledge diff; sync is always whole-tree (partial vendoring would break flat-hoist invariants) — pkg only narrows the printed report',
+  )
+  .action(async (pkg: string | undefined) => {
+    await runAction(() => updateCommand(process.cwd(), pkg));
   });
 
 program
