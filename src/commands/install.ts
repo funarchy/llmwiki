@@ -41,6 +41,12 @@ export function syncDeps(repoRoot: string, config: Config, options: { frozen: bo
           `link mode cannot rewrite cross-bundle links; "${bundle.name}" declares dependencies — use mode: copy`,
         );
       }
+      if (bundle.producerRoot !== config.bundle.root) {
+        throw new Error(
+          `mode: link cannot retarget links; "${bundle.name}" uses bundle root "${bundle.producerRoot}" ` +
+            `but this repository uses "${config.bundle.root}" — use mode: copy.`,
+        );
+      }
     }
   }
   // Symlinks are not portable on Windows without extra privilege — fall back

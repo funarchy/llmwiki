@@ -77,33 +77,42 @@ export const vendoredLock: Check = (ctx) => {
         message: `vendored bundles exist with no ${LOCK_FILENAME} — run \`llmwiki install\``,
       });
     }
-    return issues;
+    // Fall through to the config-vs-lock comparison below (empty lockNames):
+    // a declared dep with no lock at all — fresh init never installed, or a
+    // TOCTOU window in `add` — must not lint clean.
   }
 
-  const lockNames = new Set(Object.keys(lock.bundles));
+  const lockNames = new Set(lock ? Object.keys(lock.bundles) : []);
 
-  for (const name of lockNames) {
-    if (!dirNames.has(name)) {
-      issues.push({
-        file: `${root}/deps/${name}`,
-        check: 'vendored-lock',
-        severity: 'error',
-        message: `"${name}" is locked but not vendored — run \`llmwiki install\``,
-      });
+  // These two compare the lock against the vendored tree — meaningless (and
+  // redundant with the generic message above) when there is no lock at all.
+  if (lock !== null) {
+    for (const name of lockNames) {
+      if (!dirNames.has(name)) {
+        issues.push({
+          file: `${root}/deps/${name}`,
+          check: 'vendored-lock',
+          severity: 'error',
+          message: `"${name}" is locked but not vendored — run \`llmwiki install\``,
+        });
+      }
+    }
+
+    for (const name of dirNames) {
+      if (!lockNames.has(name)) {
+        issues.push({
+          file: `${root}/deps/${name}`,
+          check: 'vendored-lock',
+          severity: 'error',
+          message: `"${name}" is vendored under deps/ but has no ${LOCK_FILENAME} entry — hand-added? run \`llmwiki install\``,
+        });
+      }
     }
   }
 
-  for (const name of dirNames) {
-    if (!lockNames.has(name)) {
-      issues.push({
-        file: `${root}/deps/${name}`,
-        check: 'vendored-lock',
-        severity: 'error',
-        message: `"${name}" is vendored under deps/ but has no ${LOCK_FILENAME} entry — hand-added? run \`llmwiki install\``,
-      });
-    }
-  }
-
+  // Unconditional: a declared dep with no lock entry is an error whether the
+  // lock is merely stale or entirely absent (fresh init never installed, or
+  // `add`'s TOCTOU window leaving an edited config with no lock).
   for (const name of Object.keys(config.deps)) {
     if (!lockNames.has(name)) {
       issues.push({
@@ -115,7 +124,7 @@ export const vendoredLock: Check = (ctx) => {
     }
   }
 
-  for (const [name, entry] of Object.entries(lock.bundles)) {
+  for (const [name, entry] of lock ? Object.entries(lock.bundles) : []) {
     if (!dirNames.has(name)) continue; // already flagged above
 
     const destRoot = join(depsDir, ...name.split('/'));

@@ -40,6 +40,19 @@ describe('check: root-links-deps', () => {
     expect(rootLinksDeps(contextFor(repo))).toEqual([]);
   });
 
+  it('flags when the deps/index.md path only appears inside a code fence, not as a real link', () => {
+    const repo = makeRepo({
+      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  a: npm\n',
+      'llmwiki/index.md': '# Root\n\n```\n/llmwiki/deps/index.md\n```\n',
+    });
+    writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
+    syncDeps(repo, loadConfig(repo), { frozen: false });
+
+    const issues = rootLinksDeps(contextFor(repo));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe('error');
+  });
+
   it('flags a missing link from the root index to vendor/index.md', () => {
     const repo = makeRepo({
       'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nvendor:\n  rn:\n    from: https://example.com/rn\n',

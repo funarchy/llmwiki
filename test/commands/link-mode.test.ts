@@ -91,6 +91,30 @@ describe('mode: link', () => {
     expect(existsSync(producerFile)).toBe(true);
   });
 
+  it('rejects a producer whose bundle root differs from the consumer, since link mode cannot retarget links', () => {
+    const repo = makeRepo({
+      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',
+      'llmwiki/index.md': '# Root\n',
+    });
+    writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0', root: 'wiki' });
+
+    expect(() => syncDeps(repo, loadConfig(repo), { frozen: false })).toThrow(
+      /mode: link cannot retarget links.*"a".*"wiki".*"llmwiki".*use mode: copy/,
+    );
+  });
+
+  it('links fine when the producer and consumer bundle roots match', () => {
+    const repo = makeRepo({
+      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',
+      'llmwiki/index.md': '# Root\n',
+    });
+    writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0', root: 'llmwiki' });
+
+    syncDeps(repo, loadConfig(repo), { frozen: false });
+
+    expect(lstatSync(join(repo, 'llmwiki', 'deps', 'a')).isSymbolicLink()).toBe(true);
+  });
+
   it('passes check 9 on a linked tree', () => {
     const repo = makeRepo({
       'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',

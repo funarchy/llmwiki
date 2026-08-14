@@ -6,7 +6,7 @@ import { runLint, exitCodeFor } from '../../src/lint/run.js';
 import '../../src/lint/checks/index.js';
 import { syncDeps } from '../../src/commands/install.js';
 import { loadConfig } from '../../src/config.js';
-import { makeRepo } from '../helpers/fixture.js';
+import { makeRepo, configYaml } from '../helpers/fixture.js';
 import { writeProducer } from '../helpers/producer.js';
 import { contextFor } from '../helpers/lint.js';
 
@@ -80,5 +80,30 @@ describe('check: vendored-lock', () => {
     writeFileSync(join(repo, 'llmwiki.yaml'), 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  a: npm\n  b: npm\n');
     const issues = vendoredLock(contextFor(repo));
     expect(issues.some((i) => i.severity === 'error' && i.message.includes('"b"'))).toBe(true);
+  });
+
+  it('flags a declared dep with no lock file at all (fresh init, never installed)', () => {
+    const repo = makeRepo({
+      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  a: npm\n',
+      'llmwiki/index.md': '# Root\n',
+    });
+    // No node_modules, no install ever run: no llmwiki-lock.json exists.
+    const issues = vendoredLock(contextFor(repo));
+    expect(issues.some((i) => i.severity === 'error' && i.message.includes('"a"') && /not locked/.test(i.message))).toBe(
+      true,
+    );
+  });
+
+  it('still flags vendored bundles with no lock file at all (no declared deps)', () => {
+    const repo = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/deps/extra/index.md': '# Extra\n',
+    });
+    const issues = vendoredLock(contextFor(repo));
+    expect(issues).toHaveLength(1);
+    expect(issues[0].severity).toBe('error');
+    expect(issues[0].file).toBe('llmwiki/deps');
+    expect(issues[0].message).toMatch(/no llmwiki-lock\.json/);
   });
 });
