@@ -401,11 +401,15 @@ Markdown is small — futuramath's 210 pages are roughly 400 KB — so ten
 dependencies is a few megabytes.
 
 `mode: link` is available for repositories that will not vendor, and falls back
-to `copy` on Windows. It carries two honest limitations, because a symlinked
+to `copy` on Windows. It carries three honest limitations, because a symlinked
 upstream tree cannot be modified: cross-bundle link rewriting (§7.4) is
 impossible, so link mode is rejected when any dependency declares dependencies
-of its own; and lint check 9 is skipped, since there is no copy to verify.
-`copy` is the supported path and `link` is an escape hatch.
+of its own; it is likewise rejected when a dependency's bundle root name
+differs from the consumer's, since even the own-page rewrite is impossible and
+the producer's `/wiki/…` hrefs would be unfixable lint errors in a `llmwiki/`
+consumer — which is the modal case, not a corner; and lint check 9 is skipped,
+since there is no copy to verify. `copy` is the supported path and `link` is an
+escape hatch.
 
 ### 7.3 Transitive dependencies: hoist flat
 
