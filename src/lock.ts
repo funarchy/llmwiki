@@ -7,7 +7,12 @@ export const LOCK_FILENAME = 'llmwiki-lock.json';
 export function readLock(repoRoot: string): Lock | null {
   const path = join(repoRoot, LOCK_FILENAME);
   if (!existsSync(path)) return null;
-  const raw = JSON.parse(readFileSync(path, 'utf-8')) as Lock;
+  let raw: Lock;
+  try {
+    raw = JSON.parse(readFileSync(path, 'utf-8')) as Lock;
+  } catch (error) {
+    throw new Error(`${LOCK_FILENAME} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
   if (raw.version !== 1) {
     throw new Error(`Unsupported ${LOCK_FILENAME} version: ${String(raw.version)}`);
   }

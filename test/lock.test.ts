@@ -41,6 +41,13 @@ describe('readLock / writeLock', () => {
     expect(() => readLock(repo)).toThrow(/version/i);
   });
 
+  it('throws naming the lock file on malformed JSON', () => {
+    const repo = makeRepo({
+      [LOCK_FILENAME]: 'not { valid json',
+    });
+    expect(() => readLock(repo)).toThrow(new RegExp(LOCK_FILENAME.replace('.', '\\.')));
+  });
+
   it('produces byte-identical output regardless of bundle insertion order', () => {
     const repoA = makeRepo({});
     const repoB = makeRepo({});

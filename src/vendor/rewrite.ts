@@ -31,6 +31,15 @@ const INLINE_LINK_RE = /\[[^\]]*\]\(\s*([^)\s]+)/g;
 export function rewritePage(content: string, opts: RewriteOptions): RewriteResult {
   const warnings: string[] = [];
   const normalized = content.replace(/\r\n/g, '\n');
+
+  // An unclosed fence makes everything after it scan as prose (recorded stripCode
+  // limitation). Rewriting is still deterministic, but the user should know that
+  // link-shaped text inside what reads as code will be retargeted.
+  const fenceCount = (normalized.match(/^[ \t]*(```|~~~)/gm) ?? []).length;
+  if (fenceCount % 2 === 1) {
+    warnings.push('unclosed code fence — link-shaped text after it is rewritten as prose');
+  }
+
   const originalLines = normalized.split('\n');
   const strippedLines = stripCode(normalized).split('\n');
 
@@ -40,13 +49,14 @@ export function rewritePage(content: string, opts: RewriteOptions): RewriteResul
     const producerPrefix = `/${opts.producerRoot}`;
     if (path === producerPrefix || path.startsWith(`${producerPrefix}/`)) {
       const rest = path.slice(producerPrefix.length); // '' or '/…'
-      if (rest.startsWith('/vendor/')) {
+      if (rest === '/vendor' || rest.startsWith('/vendor/')) {
         warnings.push(`link into the producer's vendor/ is not vendored and will dangle: ${href}`);
         return null;
       }
-      const mapped = rest.startsWith('/deps/')
-        ? `/${opts.consumerRoot}/deps${rest.slice('/deps'.length)}` // flat hoist
-        : `/${opts.consumerRoot}/deps/${opts.bundleName}${rest}`; // producer's own page
+      const mapped =
+        rest === '/deps' || rest.startsWith('/deps/')
+          ? `/${opts.consumerRoot}/deps${rest.slice('/deps'.length)}` // flat hoist; '' for the bare form
+          : `/${opts.consumerRoot}/deps/${opts.bundleName}${rest}`; // producer's own page
       return mapped + frag;
     }
     warnings.push(`link outside the producer's bundle root cannot be resolved by the consumer: ${href}`);

@@ -42,6 +42,19 @@ describe('rewritePage', () => {
     expect(warnings[0]).toMatch(/vendor\//);
   });
 
+  it('leaves a bare producer vendor href unchanged with a warning', () => {
+    const { content, warnings } = rewritePage('[v]: /wiki/vendor\n', opts);
+    expect(content).toBe('[v]: /wiki/vendor\n');
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatch(/vendor\//);
+  });
+
+  it('rewrites a bare producer deps href to the bare consumer deps form', () => {
+    const { content, warnings } = rewritePage('[b]: /wiki/deps\n', opts);
+    expect(content).toBe('[b]: /llmwiki/deps\n');
+    expect(warnings).toEqual([]);
+  });
+
   it('leaves a href outside the producer bundle root unchanged with a warning', () => {
     const { content, warnings } = rewritePage('[s]: /src/foo.ts\n', opts);
     expect(content).toBe('[s]: /src/foo.ts\n');
@@ -65,6 +78,13 @@ describe('rewritePage', () => {
     const { content, warnings } = rewritePage(input, opts);
     expect(content).toBe(input);
     expect(warnings).toEqual([]);
+  });
+
+  it('warns on an unclosed code fence and still rewrites the link-shaped text after it (recorded behaviour)', () => {
+    const input = ['```', 'not really code', '[a]: /wiki/pms/traits.md', ''].join('\n');
+    const { content, warnings } = rewritePage(input, opts);
+    expect(content).toContain('[a]: /llmwiki/deps/@x/scenepad/pms/traits.md');
+    expect(warnings).toContain('unclosed code fence — link-shaped text after it is rewritten as prose');
   });
 
   it('leaves a relative href untouched with no warning', () => {
