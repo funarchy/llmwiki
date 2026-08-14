@@ -122,6 +122,15 @@ intended-satisfied question is itself a finding. Record it — fix the
 page it exposes or leave the case `to_resolve` — never reshape the
 question until it passes.
 
+Model economy: delegate down only where the cheap model's weakness is
+the test itself (the navigators); keep judgment that can corrupt the
+durable record on the strong model (verdict confirmation happens in the
+main session, with human sign-off, before a case is recorded
+`satisfied`); and don't delegate below the overhead floor at all — the
+CI workflow, hook edit, `AGENTS.md` and case files are small inline
+edits, and test runs are deterministic commands with no model judgment
+involved.
+
 ## Verification
 
 - `npm run build`, `npm run typecheck`, `npx vitest run` — all green.
