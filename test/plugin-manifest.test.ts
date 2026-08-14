@@ -39,4 +39,19 @@ describe('plugin manifests', () => {
     // a skill is ever added, renamed or removed, this test moves with it.
     expect(shippedSkills()).toEqual(['wiki-eval', 'wiki-ingest', 'wiki-review', 'wiki-search', 'wiki-vendor']);
   });
+
+  it('package.json#files ships every directory packageRoot()-dependent code reads at runtime', () => {
+    // A real `npm install` of the published tarball only contains what's
+    // listed here. Every directory below is read via packageRoot() by src/
+    // at runtime (schemas, templates, skills) or is otherwise required for
+    // the package to run or install as a plugin (dist, .claude-plugin). If
+    // one is missing from `files`, that class of feature silently breaks
+    // post-publish while every test — which runs against the checkout, not
+    // a packed tarball — stays green. This pins the class of bug, not just
+    // the missing "skills" instance.
+    const pkg = readJson('package.json') as { files: string[] };
+    for (const dir of ['dist', 'schemas', 'templates', 'skills', '.claude-plugin']) {
+      expect(pkg.files).toContain(dir);
+    }
+  });
 });
