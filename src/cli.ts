@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { lintCommand } from './commands/lint.js';
 import { gapsCommand } from './commands/gaps.js';
 import { initCommand } from './commands/init.js';
+import { installCommand } from './commands/install.js';
 
 /**
  * Run a command body, turning any thrown error into a message plus exit code 1.
@@ -38,6 +39,14 @@ program
   .description("run the mechanical checks over this repository's bundle")
   .action(async () => {
     await runAction(() => lintCommand(process.cwd()));
+  });
+
+program
+  .command('install')
+  .description("resolve, vendor and lock this bundle's dependencies")
+  .option('--frozen', 'fail instead of updating the lock (CI mode)', false)
+  .action(async (opts: { frozen: boolean }) => {
+    await runAction(() => installCommand(process.cwd(), { frozen: opts.frozen }));
   });
 
 program
