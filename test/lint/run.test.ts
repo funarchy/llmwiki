@@ -5,7 +5,7 @@ import { makeRepo, configYaml, page } from '../helpers/fixture.js';
 import { contextFor } from '../helpers/lint.js';
 
 describe('runLint', () => {
-  it('registers all eleven checks in report order', () => {
+  it('registers all twelve checks in report order', () => {
     expect(CHECKS.map((c) => c.id)).toEqual([
       'kebab-case',
       'frontmatter',
@@ -18,12 +18,16 @@ describe('runLint', () => {
       'vendored-lock',
       'generated-indexes',
       'root-links-deps',
+      'skills-current',
     ]);
   });
 
   it('returns no issues for a conformant bundle', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
+      // skills: off — this fixture is about bundle-content conformance, not
+      // skills sync state; check 12 would otherwise warn for five unlocked
+      // shipped skills this fixture never installed.
+      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nskills: off\n',
       'llmwiki/index.md': "---\nokf_version: '0.2'\n---\n\n# Root\n\n* [Data](/llmwiki/data/index.md) - data\n",
       'llmwiki/data/index.md': '# Data\n\n* [Mongo](/llmwiki/data/mongo.md) - mongo\n',
       'llmwiki/data/mongo.md': page('Mongo'),

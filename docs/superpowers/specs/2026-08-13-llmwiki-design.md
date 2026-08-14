@@ -1,10 +1,11 @@
 # llmwiki — design
 
 **Date:** 2026-08-13
-**Status:** approved. Plan 1 (bundle core, lint, `init`/`lint`/`gaps`) and
-plan 2 (the composition layer: `add`/`rm`/`install`/`update`, resolution,
-vendoring, lint checks 9–11) are implemented; only the skillset (plan 3) is
-not.
+**Status:** approved and implemented. Plan 1 (bundle core, lint,
+`init`/`lint`/`gaps`), plan 2 (the composition layer: `add`/`rm`/`install`/
+`update`, resolution, vendoring, lint checks 9–11), and plan 3 (the skillset:
+the five skills, `skills sync`, hash-locking, lint check 12, the plugin
+manifest, and llmwiki's own dogfood bundle) are all implemented.
 
 ## 1. What llmwiki is
 
@@ -590,7 +591,10 @@ The hook default is a real git `pre-commit` hook, with a Claude Code
 substitute — futuramath uses the latter alone, which is effective but only
 protects one agent.
 
-If `init` finds a `docs/` directory it says so and stops. Migrating is the
+If `init` finds a `docs/` directory it says so and proceeds — the report is a
+pointer, not a gate, since scaffolding an empty bundle alongside existing docs
+is always safe. (Amended to match shipped behaviour, which the dogfood bundle
+honestly recorded as drift.) Migrating is the
 ingest skill's job.
 
 `--fix` regenerates only what is generated: the `deps/` and `vendor/` index

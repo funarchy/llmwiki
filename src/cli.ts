@@ -7,6 +7,7 @@ import { installCommand } from './commands/install.js';
 import { addCommand } from './commands/add.js';
 import { rmCommand } from './commands/rm.js';
 import { updateCommand } from './commands/update.js';
+import { skillsCommand } from './commands/skills.js';
 
 /**
  * Run a command body, turning any thrown error into a message plus exit code 1.
@@ -74,6 +75,13 @@ program
   )
   .action(async (pkg: string | undefined) => {
     await runAction(() => updateCommand(process.cwd(), pkg));
+  });
+
+program
+  .command('skills <sub>')
+  .description('manage installed agent skills (subcommands: sync)')
+  .action(async (sub: string) => {
+    await runAction(() => skillsCommand(process.cwd(), sub));
   });
 
 program

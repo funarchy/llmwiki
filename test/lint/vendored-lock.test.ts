@@ -12,7 +12,10 @@ import { contextFor } from '../helpers/lint.js';
 
 function setup() {
   const repo = makeRepo({
-    'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  a: npm\n',
+    // skills: off — this fixture is about vendored-dep lint conformance, not
+    // skills sync state; check 12 would otherwise warn for five unlocked
+    // shipped skills this fixture never installed.
+    'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nskills: off\ndeps:\n  a: npm\n',
     'llmwiki/index.md': '# Root\n\n* [Dependencies](/llmwiki/deps/index.md) - vendored knowledge\n',
   });
   writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });

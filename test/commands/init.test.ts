@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runInit } from '../../src/commands/init.js';
 import { loadConfig } from '../../src/config.js';
+import { shippedSkills, skillHash } from '../../src/commands/skills.js';
+import { readLock } from '../../src/lock.js';
 import { makeRepo } from '../helpers/fixture.js';
 
 describe('runInit', () => {
@@ -14,6 +16,23 @@ describe('runInit', () => {
     expect(existsSync(join(root, 'llmwiki', 'index.md'))).toBe(true);
     expect(existsSync(join(root, 'llmwiki', '_meta', 'page.schema.json'))).toBe(true);
     expect(existsSync(join(root, 'llmwiki', '_meta', 'eval', 'index.md'))).toBe(true);
+  });
+
+  it('installs the shipped skills into both working trees and locks their hashes', () => {
+    const root = makeRepo({});
+    const result = runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Demo' });
+
+    const names = shippedSkills();
+    expect([...result.skillsInstalled].sort()).toEqual([...names].sort());
+    for (const name of names) {
+      expect(existsSync(join(root, '.claude', 'skills', name, 'SKILL.md'))).toBe(true);
+      expect(existsSync(join(root, '.agents', 'skills', name, 'SKILL.md'))).toBe(true);
+    }
+
+    const lock = readLock(root)!;
+    for (const name of names) {
+      expect(lock.skills[name]).toBe(skillHash(name));
+    }
   });
 
   it('substitutes the bundle title into the root index', () => {
