@@ -1,8 +1,10 @@
 # llmwiki — design
 
 **Date:** 2026-08-13
-**Status:** approved. Plan 1 (bundle core, lint, `init`/`lint`/`gaps`) is
-implemented; the composition layer (plan 2) and skillset (plan 3) are not.
+**Status:** approved. Plan 1 (bundle core, lint, `init`/`lint`/`gaps`) and
+plan 2 (the composition layer: `add`/`rm`/`install`/`update`, resolution,
+vendoring, lint checks 9–11) are implemented; only the skillset (plan 3) is
+not.
 
 ## 1. What llmwiki is
 
@@ -493,13 +495,21 @@ agent's entry point into that subtree.
 # Dependency knowledge
 
 Bundles authored upstream and vendored into this repository. Read-only —
-content here is fixed by `llmwiki install` and verified by `llmwiki lint`. To
-change a page, change it in the producing repository. `sources:` paths are
-relative to the producing package's own repository root, not this one.
+content here is written by `llmwiki install` and verified by `llmwiki lint`.
+To change a page, change it in the producing repository. `sources:` paths
+are relative to the producing package's own repository, not this one.
 
-* [@funarchy/scenepad](@funarchy/scenepad/index.md) - PMS scene stack: traits, channels, systems, presentations (v1.4.2, npm)
-* [@funarchy/koota-pms](@funarchy/koota-pms/index.md) - ECS runtime under PMS (v0.9.0, npm, required by @funarchy/scenepad)
+* [@funarchy/scenepad](/llmwiki/deps/@funarchy/scenepad/index.md) - v1.4.2, npm
+* [@funarchy/koota-pms](/llmwiki/deps/@funarchy/koota-pms/index.md) - v0.9.0, npm, required by @funarchy/scenepad
 ```
+
+Each entry is `* [<name>](/<root>/deps/<name>/index.md) - v<version>,
+<source>` plus `, required by <names>` when the bundle is not a direct
+dependency — derivable from the lock plus the vendored tree alone, with no
+producer description folded in. That leanness is deliberate: lock check 10
+regenerates this file at lint time to compare against what is on disk, and
+the producer may not be resolvable (a fresh clone before `npm install`), so
+the format cannot depend on anything the producer would supply.
 
 ## 8. Version conflict is a hard failure
 
@@ -620,7 +630,11 @@ Checking that `sources:` URLs are still alive belongs in CI with a dedicated
 cached tool such as lychee, which futuramath already does as an advisory job.
 
 Checks 9–11 are what make the composition layer honest; without 9, `deps/` is
-just a folder anyone can quietly edit.
+just a folder anyone can quietly edit. Check 9 degrades to a **warning**
+rather than an error for a bundle whose producer is not resolvable — a fresh
+clone before `npm install` must not lint red merely because `node_modules` is
+absent; everything about a vendored bundle that is verifiable without the
+producer present still errors.
 
 ## 12. The skillset
 

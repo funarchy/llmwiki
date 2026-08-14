@@ -6,8 +6,9 @@ search — plus the dependency layer OKF leaves out of scope.
 
 ## Status
 
-Early. The bundle core, the linter, and `init` / `lint` / `gaps` work. The
-dependency layer (`add`, `install`, vendoring) and the agent skillset are next.
+Early. The bundle core, the linter, `init` / `lint` / `gaps`, and the
+dependency layer (`add`, `rm`, `install`, `update`, vendoring) all work. The
+agent skillset is next.
 
 ## Quick start
 
@@ -15,9 +16,13 @@ Not yet on npm — run from a checkout:
 
 ```bash
 npm install && npm run build
-node dist/cli.js init      # scaffold llmwiki/ and llmwiki.yaml
-node dist/cli.js lint      # hold the bundle to the schema
-node dist/cli.js gaps      # list unresolved eval cases and stub pages
+node dist/cli.js init                    # scaffold llmwiki/ and llmwiki.yaml
+node dist/cli.js lint                    # hold the bundle to the schema
+node dist/cli.js gaps                    # list unresolved eval cases and stub pages
+node dist/cli.js add <pkg>               # resolve, vendor and lock a dependency
+node dist/cli.js rm <pkg>                # remove a dependency and re-sync
+node dist/cli.js install --frozen        # verify the vendored tree matches the lock (CI)
+node dist/cli.js update [pkg]            # re-resolve and report the knowledge diff
 ```
 
 Once published these become `npx llmwiki init` / `lint` / `gaps`.
