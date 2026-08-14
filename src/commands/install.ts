@@ -5,6 +5,7 @@ import { readLock, writeLock, locksEqual, LOCK_FILENAME } from '../lock.js';
 import { resolveGraph } from '../resolve/graph.js';
 import { hashBundle } from '../vendor/hash.js';
 import { clearDeps, vendorBundle } from '../vendor/copy.js';
+import { linkBundle } from '../vendor/link.js';
 import { generateIndexes } from '../generate/indexes.js';
 import type { Config, Lock, ResolvedBundle } from '../types.js';
 
@@ -30,6 +31,25 @@ export function syncDeps(repoRoot: string, config: Config, options: { frozen: bo
   const { bundles, warnings } = resolveGraph(repoRoot, config);
   const previous = readLock(repoRoot);
 
+  // §7.2: link mode hands the consumer the producer's files unrewritten, so a
+  // bundle with cross-bundle links of its own (declaredDeps) cannot go through
+  // it — those links would dangle with no way to retarget them.
+  if (config.mode === 'link') {
+    for (const bundle of bundles) {
+      if (Object.keys(bundle.declaredDeps).length > 0) {
+        throw new Error(
+          `link mode cannot rewrite cross-bundle links; "${bundle.name}" declares dependencies — use mode: copy`,
+        );
+      }
+    }
+  }
+  // Symlinks are not portable on Windows without extra privilege — fall back
+  // to copy rather than fail outright.
+  const useLink = config.mode === 'link' && process.platform !== 'win32';
+  if (config.mode === 'link' && process.platform === 'win32') {
+    warnings.push('mode: link is not supported on Windows — falling back to copy.');
+  }
+
   const lock: Lock = { version: 1, bundles: {}, skills: previous?.skills ?? {} };
   for (const bundle of bundles) {
     lock.bundles[bundle.name] = {
@@ -47,7 +67,11 @@ export function syncDeps(repoRoot: string, config: Config, options: { frozen: bo
 
   clearDeps(repoRoot, config.bundle.root);
   for (const bundle of bundles) {
-    warnings.push(...vendorBundle(repoRoot, config.bundle.root, bundle));
+    if (useLink) {
+      linkBundle(repoRoot, config.bundle.root, bundle);
+    } else {
+      warnings.push(...vendorBundle(repoRoot, config.bundle.root, bundle));
+    }
   }
   generateIndexes(repoRoot, config.bundle.root, config, lock);
   if (!options.frozen) writeLock(repoRoot, lock);
