@@ -23,7 +23,7 @@
 **Files:**
 - Create: `.github/workflows/ci.yml`
 
-- [ ] **Step 1: Write the workflow**
+- [x] **Step 1: Write the workflow**
 
 ```yaml
 name: ci
@@ -50,13 +50,13 @@ jobs:
       - run: node dist/cli.js install --frozen
 ```
 
-- [ ] **Step 2: Prove the sequence locally (CI can't run pre-push)**
+- [x] **Step 2: Prove the sequence locally (CI can't run pre-push)**
 
 Run: `npm ci && npm run build && npm run typecheck && npx vitest run && node dist/cli.js lint && node dist/cli.js install --frozen && echo GATE-GREEN`
 
 Expected: `323 passed`, `llmwiki lint ✓  no issues`, final line `GATE-GREEN`. (`npm ci` re-creates `node_modules` from the lockfile — expected to take a minute.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -75,7 +75,7 @@ git commit -m "ci: run the full gate — build, typecheck, tests, lint, frozen i
 
 The fallback must not hijack a *consumer* repo that happens to have its own `dist/cli.js` — it only fires when the repo IS llmwiki (checked via `package.json` name).
 
-- [ ] **Step 1: Extend the template test to pin the fallback**
+- [x] **Step 1: Extend the template test to pin the fallback**
 
 Replace the existing pre-commit test in `test/templates.test.ts` with:
 
@@ -91,12 +91,12 @@ Replace the existing pre-commit test in `test/templates.test.ts` with:
   });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run test/templates.test.ts`
 Expected: FAIL — `expected ... to contain 'dist/cli.js'`.
 
-- [ ] **Step 3: Rewrite the template**
+- [x] **Step 3: Rewrite the template**
 
 `templates/pre-commit.sh`, full new content:
 
@@ -122,12 +122,12 @@ else
 fi
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npx vitest run test/templates.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Refresh this clone's installed hook and prove it gates**
+- [x] **Step 5: Refresh this clone's installed hook and prove it gates**
 
 ```bash
 cp templates/pre-commit.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
@@ -136,7 +136,7 @@ sh .git/hooks/pre-commit; echo "exit=$?"
 
 Expected: `llmwiki lint ✓  no issues` then `exit=0` — the fallback branch ran lint instead of skip-and-warn. Negative check: temporarily break a page (`echo x >> llmwiki/format/links.md`), rerun the hook, expect nonzero exit and a lint error, then `git checkout -- llmwiki/format/links.md`.
 
-- [ ] **Step 6: Update the bundle's description of the hook**
+- [x] **Step 6: Update the bundle's description of the hook**
 
 In `llmwiki/commands/init.md`, replace the sentences describing the binary check (from "It is deliberately non-blocking" through "does it `exec llmwiki lint`.") with (keep ~72-char wrapping):
 
@@ -150,7 +150,7 @@ and exits 0 rather than failing every commit in a repository where
 llmwiki isn't installed.
 ```
 
-- [ ] **Step 7: Full verification and commit**
+- [x] **Step 7: Full verification and commit**
 
 Run: `npm run build && npx vitest run && node dist/cli.js lint`
 Expected: all green (the commit itself now also runs lint via the refreshed hook).
@@ -168,7 +168,7 @@ git commit -m "fix: pre-commit falls back to dist/cli.js in a checkout of llmwik
 - Create: `AGENTS.md`
 - Create: `CLAUDE.md`
 
-- [ ] **Step 1: Write `AGENTS.md`**
+- [x] **Step 1: Write `AGENTS.md`**
 
 ```markdown
 # AGENTS.md
@@ -207,14 +207,14 @@ read path. Do not copy knowledge into this file; add or update a bundle
 page instead (wiki-ingest is the write path).
 ```
 
-- [ ] **Step 2: Write `CLAUDE.md`**
+- [x] **Step 2: Write `CLAUDE.md`**
 
 ```markdown
 Read [AGENTS.md](AGENTS.md) — the single instruction file for this
 repository. Knowledge lives in the llmwiki bundle it points to.
 ```
 
-- [ ] **Step 3: Verify lint is untouched and commit**
+- [x] **Step 3: Verify lint is untouched and commit**
 
 Run: `node dist/cli.js lint`
 Expected: clean (both files live outside the bundle root).
@@ -238,6 +238,16 @@ git commit -m "docs: AGENTS.md carries instructions plus the knowledge pointer (
 > stray text line violates no lint check); executed with an inline
 > broken link instead, which trips checks 4 and 7.
 
+> **Amendment (2026-08-15, first CI run):** CI's first Linux run caught
+> a latent PR #2 bug this plan's Task 1 existed to catch: check 4's
+> case-mismatch diagnostic was unreachable on case-sensitive
+> filesystems, because `existsSync` short-circuited a wrong-case link
+> to "broken link" before the case-exact listing comparison ran. Fixed
+> in `src/lint/checks/links-resolve.ts` (case-variant lookup moved into
+> the `!existsSync` branch, dangling symlinks still plain broken
+> links), with the symlink behaviour pinned by a new test. 324 tests;
+> run 31851811660 green.
+
 **Files:**
 - Create: `llmwiki/_meta/eval/how-does-lint-tamper-proof-vendored-knowledge.md`
 - Create: `llmwiki/_meta/eval/what-distinguishes-deps-from-vendor.md`
@@ -256,7 +266,7 @@ git commit -m "docs: AGENTS.md carries instructions plus the knowledge pointer (
 5. *How do the agent skills get installed, and what keeps them current?* (skills — cross-subtree with commands via `skills sync` / check 12)
 6. *What must a producer repository do to its npm package so consumers can install its bundle?* (expected gap — the bundle documents consuming, not producing)
 
-- [ ] **Step 1: Run six fresh Haiku navigators (one Agent call each, all six in parallel, `model: "haiku"`)**
+- [x] **Step 1: Run six fresh Haiku navigators (one Agent call each, all six in parallel, `model: "haiku"`)**
 
 Prompt template — substitute the question, nothing else:
 
@@ -278,15 +288,15 @@ short quotes of the supporting text and the page each quote came from;
 only part was answerable, NOT_FOUND if the bundle does not answer it.
 ```
 
-- [ ] **Step 2: Triage verdicts honestly**
+- [x] **Step 2: Triage verdicts honestly**
 
 Expected: cases 1–5 `FOUND`, case 6 `NOT_FOUND` or `PARTIAL`. If any of 1–5 comes back `PARTIAL`/`NOT_FOUND`, that is a finding: report it to the user and either fix the exposed page (then rerun that one navigator) or record the case `to_resolve` — never reword the question to make it pass. If case 6 comes back `FOUND`, report that too and pick a genuinely unanswerable replacement with the user.
 
-- [ ] **Step 3: CHECKPOINT — human sign-off**
+- [x] **Step 3: CHECKPOINT — human sign-off**
 
 Present each navigator's answer + navigation path to the user. Only cases the user confirms correct are recorded `satisfied` (the skill's rule: record who confirmed).
 
-- [ ] **Step 4: Write the six case files**
+- [x] **Step 4: Write the six case files**
 
 Shape for a `satisfied` case (fill `navigation`, `answer-must-mention`, and the answer from the actual run; `navigation` paths are bundle-root-relative, per the wiki-eval skill's examples):
 
@@ -330,7 +340,7 @@ Navigator: claude-haiku-4-5, fresh session, links-only from the root
 index.
 ```
 
-- [ ] **Step 5: Link the cases from the eval index**
+- [x] **Step 5: Link the cases from the eval index**
 
 Append to `llmwiki/_meta/eval/index.md`:
 
@@ -346,7 +356,7 @@ Append to `llmwiki/_meta/eval/index.md`:
 - [How does a producer prepare its bundle for consumers?](how-does-a-producer-prepare-its-bundle-for-consumers.md) *(open)*
 ```
 
-- [ ] **Step 6: Verify gaps and lint**
+- [x] **Step 6: Verify gaps and lint**
 
 Run: `node dist/cli.js gaps`
 Expected: exactly one open gap (the producer question) listing its `pages-needed`; "(none)" under stub pages.
@@ -354,7 +364,7 @@ Expected: exactly one open gap (the producer question) listing its `pages-needed
 Run: `node dist/cli.js lint`
 Expected: clean (`_meta/` is excluded from the page model).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add llmwiki/_meta/eval/
@@ -365,19 +375,19 @@ git commit -m "eval: seed six navigator-verified cases; one honest open gap"
 
 ### Task 5: Final verification, PR body, push
 
-- [ ] **Step 1: Full gate, exactly as CI will run it**
+- [x] **Step 1: Full gate, exactly as CI will run it**
 
 Run: `npm run build && npm run typecheck && npx vitest run && node dist/cli.js lint && node dist/cli.js install --frozen && node dist/cli.js gaps`
 Expected: 323+ tests pass, lint clean, frozen install silent, gaps shows the one open case.
 
-- [ ] **Step 2: Update PR #2's body**
+- [x] **Step 2: Update PR #2's body**
 
 Amend two checklist bullets (via `gh pr edit 2 --body-file <file>` after editing the current body):
 
 - *Mechanically gated*: add — "CI (`.github/workflows/ci.yml`) runs build/typecheck/tests/lint/`install --frozen` on every PR; the pre-commit template gates from-checkout clones too; `_meta/eval/` now holds six cases (five Haiku-navigator-verified `satisfied`, one honest open gap that `llmwiki gaps` reports)."
 - *Instructions separated from knowledge*: add — "demonstrated in-repo: `AGENTS.md` carries genuine instructions plus the pointer into `llmwiki/`; `CLAUDE.md` is one line pointing at `AGENTS.md`."
 
-- [ ] **Step 3: Push**
+- [x] **Step 3: Push**
 
 ```bash
 git push origin solution/llmwiki-v1
@@ -385,6 +395,6 @@ git push origin solution/llmwiki-v1
 
 Then: `gh run watch` (or `gh pr checks 2 --watch`) until the new CI workflow completes green — the first real run of the gate.
 
-- [ ] **Step 4: Report**
+- [x] **Step 4: Report**
 
 Report to the user: CI run URL + conclusion, final `gaps` output, and the three gap-closures mapped back to #1's criteria.
