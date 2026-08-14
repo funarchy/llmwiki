@@ -1,8 +1,9 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { CONFIG_FILENAME, DEFAULT_ROOT, validateBundleRoot } from '../config.js';
+import { CONFIG_FILENAME, DEFAULT_ROOT, loadConfig, validateBundleRoot } from '../config.js';
 import { packageRoot } from '../paths.js';
 import { ask, confirm } from '../prompt.js';
+import { syncSkills } from './skills.js';
 
 export interface InitOptions {
   repoRoot: string;
@@ -19,6 +20,7 @@ export interface InitResult {
   hookInstalled: boolean;
   hookSkipped: boolean;
   foundDocsDir: boolean;
+  skillsInstalled: string[];
 }
 
 /** Directories that look like an existing bundle, in preference order. */
@@ -109,6 +111,10 @@ export function runInit(options: InitOptions): InitResult {
 
   const wrotePackageJson = updatePackageJson(repoRoot, bundleRoot);
 
+  // Config just written is `skills: managed` by default — install the five
+  // shipped skills into this repository's own working trees.
+  const { installed: skillsInstalled } = syncSkills(repoRoot, loadConfig(repoRoot));
+
   let hookInstalled = false;
   let hookSkipped = false;
   const hooksDir = join(repoRoot, '.git', 'hooks');
@@ -130,6 +136,7 @@ export function runInit(options: InitOptions): InitResult {
     hookInstalled,
     hookSkipped,
     foundDocsDir: existsSync(join(repoRoot, 'docs')),
+    skillsInstalled,
   };
 }
 
@@ -171,6 +178,9 @@ export async function initCommand(cwd: string, options: InitCommandOptions): Pro
   if (result.hookSkipped) console.log('Left the existing .git/hooks/pre-commit in place');
   if (result.foundDocsDir) {
     console.log('Found a docs/ directory. Migrating it is the wiki-ingest skill\'s job — nothing was touched.');
+  }
+  if (result.skillsInstalled.length > 0) {
+    console.log(`Installed skills: ${result.skillsInstalled.join(', ')}`);
   }
   console.log('Next: run `llmwiki lint`.');
 

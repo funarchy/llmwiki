@@ -10,6 +10,7 @@ import { linkAbsolute } from './link-absolute.js';
 import { vendoredLock } from './vendored-lock.js';
 import { generatedIndexes } from './generated-indexes.js';
 import { rootLinksDeps } from './root-links-deps.js';
+import { skillsCurrent } from './skills-current.js';
 
 /** Importing this module registers every check exactly once, in report order. */
 registerCheck('kebab-case', kebabCase);
@@ -23,3 +24,4 @@ registerCheck('link-absolute', linkAbsolute);
 registerCheck('vendored-lock', vendoredLock);
 registerCheck('generated-indexes', generatedIndexes);
 registerCheck('root-links-deps', rootLinksDeps);
+registerCheck('skills-current', skillsCurrent);
