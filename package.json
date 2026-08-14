@@ -9,7 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.test.json"
+    "typecheck": "tsc -p tsconfig.test.json",
+    "llmwiki:lint": "llmwiki lint"
   },
   "repository": {
     "type": "git",
@@ -43,6 +44,8 @@
     "dist",
     "schemas",
     "templates",
-    ".claude-plugin"
+    ".claude-plugin",
+    "llmwiki",
+    "llmwiki.yaml"
   ]
 }
