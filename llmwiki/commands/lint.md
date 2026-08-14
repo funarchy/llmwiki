@@ -29,7 +29,7 @@ only warnings still exits clean.
 | 9 | `vendored-lock` | vendored `deps/` matches the lock and re-derives from the producer | error (warning if the producer isn't resolvable) |
 | 10 | `generated-indexes` | `deps/index.md` and `vendor/index.md` are current | error |
 | 11 | `root-links-deps` | root index links `deps/`/`vendor/` when they exist | error |
-| 12 | `skills-current` | installed skill hashes match the shipped skills | **warning, always** |
+| 12 | `skills-current` | the lock's recorded skill hashes match the shipped skills — installed copies are never read, so user edits under `vendored` mode are not compared | **warning, always** |
 
 Check 12 (`skills-current`, `src/lint/checks/skills-current.ts`) is the one
 check that is never an error, by design — a stale skill must never fail CI,

@@ -591,7 +591,10 @@ The hook default is a real git `pre-commit` hook, with a Claude Code
 substitute — futuramath uses the latter alone, which is effective but only
 protects one agent.
 
-If `init` finds a `docs/` directory it says so and stops. Migrating is the
+If `init` finds a `docs/` directory it says so and proceeds — the report is a
+pointer, not a gate, since scaffolding an empty bundle alongside existing docs
+is always safe. (Amended to match shipped behaviour, which the dogfood bundle
+honestly recorded as drift.) Migrating is the
 ingest skill's job.
 
 `--fix` regenerates only what is generated: the `deps/` and `vendor/` index
