@@ -73,6 +73,18 @@ export function loadBundle(repoRoot: string, root: string): Bundle {
 export function isConceptPage(page: Page, bundle: Bundle): boolean {
   if (page.isIndex) return false;
   if (page.repoPath === `${bundle.root}/README.md`) return false;
+  // A producer's own front door, reachable through `mode: link` since the whole
+  // producer tree (README included) sits behind the symlink and cannot be
+  // filtered out the way copy-vendoring drops it (vendor/files.ts).
+  const depsPrefix = `${bundle.root}/deps/`;
+  const readmeSuffix = '/README.md';
+  if (
+    page.repoPath.startsWith(depsPrefix) &&
+    page.repoPath.endsWith(readmeSuffix) &&
+    page.repoPath.length > depsPrefix.length + readmeSuffix.length
+  ) {
+    return false;
+  }
   return true;
 }
 

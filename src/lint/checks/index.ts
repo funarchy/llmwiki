@@ -7,6 +7,9 @@ import { orphans } from './orphans.js';
 import { dirIndex } from './dir-index.js';
 import { linkReferenceStyle } from './link-reference-style.js';
 import { linkAbsolute } from './link-absolute.js';
+import { vendoredLock } from './vendored-lock.js';
+import { generatedIndexes } from './generated-indexes.js';
+import { rootLinksDeps } from './root-links-deps.js';
 
 /** Importing this module registers every check exactly once, in report order. */
 registerCheck('kebab-case', kebabCase);
@@ -17,3 +20,6 @@ registerCheck('orphans', orphans);
 registerCheck('dir-index', dirIndex);
 registerCheck('link-reference-style', linkReferenceStyle);
 registerCheck('link-absolute', linkAbsolute);
+registerCheck('vendored-lock', vendoredLock);
+registerCheck('generated-indexes', generatedIndexes);
+registerCheck('root-links-deps', rootLinksDeps);

@@ -3,6 +3,10 @@ import { Command } from 'commander';
 import { lintCommand } from './commands/lint.js';
 import { gapsCommand } from './commands/gaps.js';
 import { initCommand } from './commands/init.js';
+import { installCommand } from './commands/install.js';
+import { addCommand } from './commands/add.js';
+import { rmCommand } from './commands/rm.js';
+import { updateCommand } from './commands/update.js';
 
 /**
  * Run a command body, turning any thrown error into a message plus exit code 1.
@@ -38,6 +42,38 @@ program
   .description("run the mechanical checks over this repository's bundle")
   .action(async () => {
     await runAction(() => lintCommand(process.cwd()));
+  });
+
+program
+  .command('install')
+  .description("resolve, vendor and lock this bundle's dependencies")
+  .option('--frozen', 'fail instead of updating the lock (CI mode)', false)
+  .action(async (opts: { frozen: boolean }) => {
+    await runAction(() => installCommand(process.cwd(), { frozen: opts.frozen }));
+  });
+
+program
+  .command('add <pkg>')
+  .description('add a dependency, then resolve, vendor and lock it')
+  .option('--path <dir>', 'resolve as a path: dependency instead of npm')
+  .action(async (pkg: string, opts: { path?: string }) => {
+    await runAction(() => addCommand(process.cwd(), pkg, { path: opts.path }));
+  });
+
+program
+  .command('rm <pkg>')
+  .description('remove a dependency and re-sync (a bundle still required transitively stays vendored)')
+  .action(async (pkg: string) => {
+    await runAction(() => rmCommand(process.cwd(), pkg));
+  });
+
+program
+  .command('update [pkg]')
+  .description(
+    're-resolve and report the knowledge diff; sync is always whole-tree (partial vendoring would break flat-hoist invariants) — pkg only narrows the printed report',
+  )
+  .action(async (pkg: string | undefined) => {
+    await runAction(() => updateCommand(process.cwd(), pkg));
   });
 
 program

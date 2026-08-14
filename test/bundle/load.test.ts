@@ -141,6 +141,21 @@ describe('isConceptPage', () => {
     expect(isConceptPage(byPath('llmwiki/README.md'), bundle)).toBe(false);
     expect(isConceptPage(byPath('llmwiki/mongo.md'), bundle)).toBe(true);
   });
+
+  it('excludes a README.md anywhere under deps/, needed for mode: link', () => {
+    const root = makeRepo({
+      'llmwiki.yaml': configYaml(),
+      'llmwiki/index.md': '# Root\n',
+      'llmwiki/deps/@scope/name/README.md': '# Producer readme\n',
+      'llmwiki/deps/plain/README.md': '# Producer readme\n',
+      'llmwiki/deps/plain/topic.md': page('Topic'),
+    });
+    const bundle = loadBundle(root, 'llmwiki');
+    const byPath = (p: string) => bundle.pages.find((x) => x.repoPath === p)!;
+    expect(isConceptPage(byPath('llmwiki/deps/@scope/name/README.md'), bundle)).toBe(false);
+    expect(isConceptPage(byPath('llmwiki/deps/plain/README.md'), bundle)).toBe(false);
+    expect(isConceptPage(byPath('llmwiki/deps/plain/topic.md'), bundle)).toBe(true);
+  });
 });
 
 describe('pageDirectories', () => {

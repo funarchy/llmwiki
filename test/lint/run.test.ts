@@ -5,7 +5,7 @@ import { makeRepo, configYaml, page } from '../helpers/fixture.js';
 import { contextFor } from '../helpers/lint.js';
 
 describe('runLint', () => {
-  it('registers all eight checks in report order', () => {
+  it('registers all eleven checks in report order', () => {
     expect(CHECKS.map((c) => c.id)).toEqual([
       'kebab-case',
       'frontmatter',
@@ -15,6 +15,9 @@ describe('runLint', () => {
       'dir-index',
       'link-reference-style',
       'link-absolute',
+      'vendored-lock',
+      'generated-indexes',
+      'root-links-deps',
     ]);
   });
 

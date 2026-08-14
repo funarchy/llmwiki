@@ -81,3 +81,35 @@ export interface Config {
   skills: 'managed' | 'vendored' | 'off';
   mode: 'copy' | 'link';
 }
+
+/** A dependency bundle after resolution, before vendoring. */
+export interface ResolvedBundle {
+  name: string;
+  version: string;
+  source: DepSource;
+  /** Absolute directory of the producing package (its repo root). */
+  absDir: string;
+  /** The producer's bundle root, relative to absDir. */
+  producerRoot: string;
+  /** Deps the producer declares in its own llmwiki.yaml. */
+  declaredDeps: Record<string, DepSpec>;
+  /** Requirers: '.' is the consumer itself. */
+  requiredBy: string[];
+}
+
+export interface LockBundle {
+  source: DepSource;
+  version: string;
+  /** Where resolution found it, repo-relative posix for npm, the config path for path deps. */
+  resolvedFrom: string;
+  /** sha256 over the producer's vendorable content, before rewriting. */
+  upstreamHash: string;
+  requiredBy: string[];
+}
+
+export interface Lock {
+  version: 1;
+  bundles: Record<string, LockBundle>;
+  /** Skill hashes — written by Plan 3; carried as-is here. */
+  skills: Record<string, string>;
+}
