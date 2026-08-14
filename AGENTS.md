@@ -1,0 +1,34 @@
+# AGENTS.md
+
+Instructions for agents working in this repository. Knowledge does not
+live here — see the last section.
+
+## Build, test, lint
+
+- `npm run build` — compile TypeScript to `dist/`
+- `npm run typecheck` — typecheck sources and tests together
+- `npx vitest run` — the full test suite; must be green before a commit
+- `node dist/cli.js lint` — lint this repository's own bundle (dogfood)
+- `node dist/cli.js install --frozen` — verify the lock matches (CI)
+
+Run the build before the CLI commands — `dist/` is what executes. CI
+(`.github/workflows/ci.yml`) runs exactly this sequence; the pre-commit
+hook runs lint locally.
+
+## Conventions
+
+- Specs live in `docs/superpowers/specs/`, implementation plans in
+  `docs/superpowers/plans/`. Plans are the durable record of what was
+  built and why; amend them when reviews find spec defects.
+- The five agent skills under `skills/wiki-*/SKILL.md` are the
+  canonical copies; `.claude/skills/` and `.agents/skills/` are
+  installed copies, synced by `llmwiki skills sync` and hash-locked in
+  `llmwiki-lock.json`. Edit the canonical copy, then sync.
+
+## Knowledge
+
+This repository's knowledge lives in its llmwiki bundle at
+[/llmwiki/](llmwiki/index.md), not in this file. Start at
+`llmwiki/index.md` and navigate by links — the wiki-search skill is the
+read path. Do not copy knowledge into this file; add or update a bundle
+page instead (wiki-ingest is the write path).
