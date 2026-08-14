@@ -1,10 +1,11 @@
 # llmwiki — design
 
 **Date:** 2026-08-13
-**Status:** approved. Plan 1 (bundle core, lint, `init`/`lint`/`gaps`) and
-plan 2 (the composition layer: `add`/`rm`/`install`/`update`, resolution,
-vendoring, lint checks 9–11) are implemented; only the skillset (plan 3) is
-not.
+**Status:** approved and implemented. Plan 1 (bundle core, lint,
+`init`/`lint`/`gaps`), plan 2 (the composition layer: `add`/`rm`/`install`/
+`update`, resolution, vendoring, lint checks 9–11), and plan 3 (the skillset:
+the five skills, `skills sync`, hash-locking, lint check 12, the plugin
+manifest, and llmwiki's own dogfood bundle) are all implemented.
 
 ## 1. What llmwiki is
 
