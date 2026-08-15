@@ -1,5 +1,8 @@
 # llmwiki
 
+This repository's mission is to solve
+[#1](https://github.com/funarchy/llmwiki/issues/1) well.
+
 A knowledge base that lives in your repository — [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)-conformant
 markdown pages that agents navigate along explicit links instead of similarity
 search — plus the dependency layer OKF leaves out of scope.
