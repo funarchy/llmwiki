@@ -59,6 +59,11 @@ installation to the plugin path instead (`.claude-plugin/`, for
 skill whose installed copy has drifted from the CLI's shipped hash, and is
 **warning-only**: a stale skill must never fail CI.
 
+## Contributing
+
+The contribution this project wants right now is an issue, not a PR —
+see [CONTRIBUTING.md](CONTRIBUTING.md) for the honest why.
+
 ## Design
 
 The design — format, dependency model, trust boundaries — is documented

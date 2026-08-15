@@ -1,0 +1,24 @@
+name: Positive feedback
+description: 'It worked? Say so. Usage reports are how a young tool learns what not to break.'
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: What you used llmwiki for
+      description: 'The repository, the task, the situation — as much as you can share.'
+    validations:
+      required: true
+  - type: textarea
+    id: worked
+    attributes:
+      label: What worked
+      description: 'The part that held up, and what it saved you.'
+    validations:
+      required: true
+  - type: textarea
+    id: rough
+    attributes:
+      label: What felt rough (optional)
+      description: 'Anything that almost got in the way. If it clearly did get in the way, a Pollution is the better form.'
+    validations:
+      required: false
