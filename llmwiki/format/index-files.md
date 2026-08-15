@@ -8,7 +8,6 @@ sources:
   - src/lint/checks/index-frontmatter.ts
   - src/lint/checks/dir-index.ts
   - src/lint/checks/orphans.ts
-  - docs/superpowers/specs/2026-08-13-llmwiki-design.md
 ---
 
 `index.md` files are directory routers, not concept pages: per OKF §8 they

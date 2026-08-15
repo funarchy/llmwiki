@@ -7,7 +7,6 @@ tags: [composition]
 sources:
   - src/vendor/rewrite.ts
   - src/lint/checks/vendored-lock.ts
-  - docs/superpowers/specs/2026-08-13-llmwiki-design.md
 ---
 
 Vendoring relocates a bundle, so every absolute link inside a vendored page

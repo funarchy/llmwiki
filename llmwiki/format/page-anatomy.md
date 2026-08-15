@@ -7,7 +7,6 @@ tags: [format]
 sources:
   - schemas/page.schema.json
   - src/bundle/load.ts
-  - docs/superpowers/specs/2026-08-13-llmwiki-design.md
 ---
 
 Every concept page is a `kebab-case.md` file with a YAML frontmatter block and

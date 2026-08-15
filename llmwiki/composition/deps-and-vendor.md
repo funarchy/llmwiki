@@ -8,7 +8,6 @@ sources:
   - src/vendor/copy.ts
   - src/vendor/files.ts
   - src/vendor/link.ts
-  - docs/superpowers/specs/2026-08-13-llmwiki-design.md
 ---
 
 A bundle has two subtrees for content that didn't originate in this

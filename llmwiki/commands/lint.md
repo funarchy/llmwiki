@@ -7,7 +7,6 @@ tags: [commands, lint]
 sources:
   - src/lint/checks/index.ts
   - src/lint/run.ts
-  - docs/superpowers/specs/2026-08-13-llmwiki-design.md
 ---
 
 `llmwiki lint` runs 12 checks over the bundle model, in the fixed order they

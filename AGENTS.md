@@ -17,9 +17,6 @@ hook runs lint locally.
 
 ## Conventions
 
-- Specs live in `docs/superpowers/specs/`, implementation plans in
-  `docs/superpowers/plans/`. Plans are the durable record of what was
-  built and why; amend them when reviews find spec defects.
 - The five agent skills under `skills/wiki-*/SKILL.md` are the
   canonical copies; `.claude/skills/` and `.agents/skills/` are
   installed copies, synced by `llmwiki skills sync` and hash-locked in

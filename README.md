@@ -58,8 +58,8 @@ skill whose installed copy has drifted from the CLI's shipped hash, and is
 
 ## Design
 
-The full specification, including the dependency model, lives in
-[docs/superpowers/specs/2026-08-13-llmwiki-design.md](docs/superpowers/specs/2026-08-13-llmwiki-design.md).
+The design — format, dependency model, trust boundaries — is documented
+in this repository's own bundle: start at [llmwiki/index.md](llmwiki/index.md).
 
 ## Development
 

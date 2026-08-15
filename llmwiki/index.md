@@ -16,7 +16,6 @@ else's.
 * [Composition](/llmwiki/composition/index.md) - the deps/vendor trust split, link rewriting, version conflicts
 * [Skills](/llmwiki/skills/index.md) - the five agent-facing skills and when each triggers
 
-The full specification lives at
-[docs/superpowers/specs/2026-08-13-llmwiki-design.md](/docs/superpowers/specs/2026-08-13-llmwiki-design.md);
-this bundle documents the same product from inside its own format, and where
-the two disagree, the code — and this bundle, which cites it — wins.
+This bundle documents the product from inside its own format; where it
+disagrees with anything else, the code — and this bundle, which cites
+it — wins.

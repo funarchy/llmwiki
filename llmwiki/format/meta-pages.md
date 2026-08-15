@@ -7,7 +7,6 @@ tags: [format]
 sources:
   - src/bundle/load.ts
   - schemas/page.schema.json
-  - docs/superpowers/specs/2026-08-13-llmwiki-design.md
 ---
 
 `type: meta` is an ordinary concept page — same required frontmatter, same

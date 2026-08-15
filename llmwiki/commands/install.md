@@ -7,7 +7,6 @@ tags: [commands, install]
 sources:
   - src/commands/install.ts
   - src/lock.ts
-  - docs/superpowers/specs/2026-08-13-llmwiki-design.md
 ---
 
 `llmwiki install [--frozen]` is the one engine (`syncDeps`,

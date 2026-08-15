@@ -8,7 +8,6 @@ sources:
   - src/md/links.ts
   - src/lint/checks/link-absolute.ts
   - src/lint/checks/link-reference-style.ts
-  - docs/superpowers/specs/2026-08-13-llmwiki-design.md
 ---
 
 Every link in a page body must be reference-style, with a repo-root-absolute
