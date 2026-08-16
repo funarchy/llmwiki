@@ -53,5 +53,11 @@ describe('plugin manifests', () => {
     for (const dir of ['dist', 'schemas', 'templates', 'skills', '.claude-plugin']) {
       expect(pkg.files).toContain(dir);
     }
+    // The dogfood bundle and its config ship too — they make wiki-sticky its
+    // own producer (`wiki-sticky add wiki-sticky` vendors this bundle). Pinned
+    // by name because the rename to wiki/ silently dropped them from the
+    // tarball while every test stayed green.
+    expect(pkg.files).toContain('wiki');
+    expect(pkg.files).toContain('wiki-sticky.yaml');
   });
 });
