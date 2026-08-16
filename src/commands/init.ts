@@ -24,7 +24,7 @@ export interface InitResult {
 }
 
 /** Directories that look like an existing bundle, in preference order. */
-export const ADOPTION_CANDIDATES = ['llmwiki', 'wiki', join('docs', 'wiki')];
+export const ADOPTION_CANDIDATES = ['wiki', join('docs', 'wiki')];
 
 export function findAdoptableRoot(repoRoot: string): string | null {
   for (const candidate of ADOPTION_CANDIDATES) {
@@ -64,7 +64,7 @@ function updatePackageJson(repoRoot: string, bundleRoot: string): boolean {
   files.add(CONFIG_FILENAME);
   pkg.files = [...files];
 
-  pkg.scripts = { ...pkg.scripts, 'llmwiki:lint': 'llmwiki lint' };
+  pkg.scripts = { ...pkg.scripts, 'wiki-sticky:lint': 'wiki-sticky lint' };
 
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   return true;
@@ -164,7 +164,7 @@ export async function initCommand(cwd: string, options: InitCommandOptions): Pro
       console.log(`Found an existing bundle at ${adoptable}/ — it can be adopted as-is.`);
     }
     bundleRoot = await ask('Bundle root', suggested);
-    installHook = await confirm('Install a git pre-commit hook that runs llmwiki lint?', true);
+    installHook = await confirm('Install a git pre-commit hook that runs wiki-sticky lint?', true);
   }
 
   const result = runInit({ repoRoot: cwd, bundleRoot, installHook, title: titleFrom(cwd) });
@@ -172,7 +172,7 @@ export async function initCommand(cwd: string, options: InitCommandOptions): Pro
   console.log(`${result.adoptedExisting ? 'Adopted' : 'Created'} bundle root: ${result.bundleRoot}/`);
   console.log(`Wrote ${CONFIG_FILENAME}`);
   if (result.wrotePackageJson) {
-    console.log(`Added ${result.bundleRoot} and ${CONFIG_FILENAME} to package.json#files, plus an llmwiki:lint script`);
+    console.log(`Added ${result.bundleRoot} and ${CONFIG_FILENAME} to package.json#files, plus an wiki-sticky:lint script`);
   }
   if (result.hookInstalled) console.log('Installed .git/hooks/pre-commit');
   if (result.hookSkipped) console.log('Left the existing .git/hooks/pre-commit in place');
@@ -182,7 +182,7 @@ export async function initCommand(cwd: string, options: InitCommandOptions): Pro
   if (result.skillsInstalled.length > 0) {
     console.log(`Installed skills: ${result.skillsInstalled.join(', ')}`);
   }
-  console.log('Next: run `llmwiki lint`.');
+  console.log('Next: run `wiki-sticky lint`.');
 
   return 0;
 }

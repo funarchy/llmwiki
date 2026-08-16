@@ -79,7 +79,7 @@ export function skillsCommand(cwd: string, sub: string): number {
   }
 
   const repoRoot = findRepoRoot(cwd);
-  if (!repoRoot) throw new Error('No llmwiki.yaml found — run `llmwiki init` first.');
+  if (!repoRoot) throw new Error('No wiki-sticky.yaml found — run `wiki-sticky init` first.');
 
   const config = loadConfig(repoRoot);
   if (config.skills === 'off') {

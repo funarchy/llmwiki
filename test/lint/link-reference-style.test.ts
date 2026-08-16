@@ -3,13 +3,13 @@ import { linkReferenceStyle } from '../../src/lint/checks/link-reference-style.j
 import { makeRepo, configYaml, page } from '../helpers/fixture.js';
 import { contextFor } from '../helpers/lint.js';
 
-const base = { 'llmwiki.yaml': configYaml(), 'llmwiki/index.md': '# Root\n' };
+const base = { 'wiki-sticky.yaml': configYaml(), 'wiki/index.md': '# Root\n' };
 
 describe('check: link-reference-style', () => {
   it('accepts reference-style links in a concept page', () => {
     const root = makeRepo({
       ...base,
-      'llmwiki/mongo.md': page('Mongo', '\nSee [data][data].\n\n[data]: /llmwiki/index.md\n'),
+      'wiki/mongo.md': page('Mongo', '\nSee [data][data].\n\n[data]: /wiki/index.md\n'),
     });
     expect(linkReferenceStyle(contextFor(root))).toEqual([]);
   });
@@ -17,7 +17,7 @@ describe('check: link-reference-style', () => {
   it('flags an inline link in a concept page', () => {
     const root = makeRepo({
       ...base,
-      'llmwiki/mongo.md': page('Mongo', '\nSee [data](/llmwiki/index.md).\n'),
+      'wiki/mongo.md': page('Mongo', '\nSee [data](/wiki/index.md).\n'),
     });
     const issues = linkReferenceStyle(contextFor(root));
     expect(issues).toHaveLength(1);
@@ -27,9 +27,9 @@ describe('check: link-reference-style', () => {
 
   it('allows inline links in index files', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n\n* [Mongo](/llmwiki/mongo.md) - mongo\n',
-      'llmwiki/mongo.md': page('Mongo'),
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n\n* [Mongo](/wiki/mongo.md) - mongo\n',
+      'wiki/mongo.md': page('Mongo'),
     });
     expect(linkReferenceStyle(contextFor(root))).toEqual([]);
   });
@@ -37,7 +37,7 @@ describe('check: link-reference-style', () => {
   it('does not flag inline links inside code fences', () => {
     const root = makeRepo({
       ...base,
-      'llmwiki/mongo.md': page('Mongo', '\n```markdown\n[x](/llmwiki/index.md)\n```\n'),
+      'wiki/mongo.md': page('Mongo', '\n```markdown\n[x](/wiki/index.md)\n```\n'),
     });
     expect(linkReferenceStyle(contextFor(root))).toEqual([]);
   });
@@ -45,7 +45,7 @@ describe('check: link-reference-style', () => {
   it('flags an inline image, because images are links too', () => {
     const root = makeRepo({
       ...base,
-      'llmwiki/mongo.md': page('Mongo', '\n![diagram](/llmwiki/img/d.png)\n'),
+      'wiki/mongo.md': page('Mongo', '\n![diagram](/wiki/img/d.png)\n'),
     });
     expect(linkReferenceStyle(contextFor(root))).toHaveLength(1);
   });
@@ -53,16 +53,16 @@ describe('check: link-reference-style', () => {
   it('flags every inline link on a line, not just the first', () => {
     const root = makeRepo({
       ...base,
-      'llmwiki/mongo.md': page('Mongo', '\nSee [a](/llmwiki/index.md) and [b](/llmwiki/index.md).\n'),
+      'wiki/mongo.md': page('Mongo', '\nSee [a](/wiki/index.md) and [b](/wiki/index.md).\n'),
     });
     expect(linkReferenceStyle(contextFor(root))).toHaveLength(2);
   });
 
   it('skips the bundle README', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n',
-      'llmwiki/README.md': '# Readme\n\nSee [x](/llmwiki/index.md).\n',
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n',
+      'wiki/README.md': '# Readme\n\nSee [x](/wiki/index.md).\n',
     });
     expect(linkReferenceStyle(contextFor(root))).toEqual([]);
   });

@@ -23,7 +23,7 @@ describe('resolvePathDep', () => {
     expect(resolved.source).toBe('path');
   });
 
-  it('errors naming wiki-vendor when there is no llmwiki.yaml', () => {
+  it('errors naming wiki-vendor when there is no wiki-sticky.yaml', () => {
     const producerDir = makeRepo({});
     writeProducer(producerDir, { name: 'a', noBundle: true });
     const consumerDir = makeRepo({});
@@ -32,8 +32,8 @@ describe('resolvePathDep', () => {
 
   it('errors when the producer declares no version anywhere', () => {
     const producerDir = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Index\n',
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Index\n',
     });
     const consumerDir = makeRepo({});
     expect(() => resolvePathDep(consumerDir, 'a', { source: 'path', path: producerDir })).toThrow(/declares no version/);
@@ -41,8 +41,8 @@ describe('resolvePathDep', () => {
 
   it('falls back to bundle.version when there is no package.json', () => {
     const producerDir = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\n  version: 3.4.5\n',
-      'llmwiki/index.md': '# Index\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\n  version: 3.4.5\n',
+      'wiki/index.md': '# Index\n',
     });
     const consumerDir = makeRepo({});
     const resolved = resolvePathDep(consumerDir, 'a', { source: 'path', path: producerDir });

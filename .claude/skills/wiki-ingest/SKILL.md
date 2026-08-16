@@ -1,6 +1,6 @@
 ---
 name: wiki-ingest
-description: Use when knowledge should be recorded in the repository's llmwiki bundle — a fact the user just explained, a doc being migrated into the wiki, a config or loader file whose meaning should be extracted, or something learned from code or a URL that took real effort to derive. Covers ambient capture from the current conversation as well as explicit migration requests.
+description: Use when knowledge should be recorded in the repository's wiki-sticky bundle — a fact the user just explained, a doc being migrated into the wiki, a config or loader file whose meaning should be extracted, or something learned from code or a URL that took real effort to derive. Covers ambient capture from the current conversation as well as explicit migration requests.
 ---
 
 # wiki-ingest
@@ -11,9 +11,9 @@ structure, and a lint-clean, single commit.
 
 ## 0. Find the bundle root
 
-Read `bundle.root` from `llmwiki.yaml` at the repository root; it defaults to
-`llmwiki` if the key is absent. Call this `<bundle-root>` for the rest of this
-procedure — never hardcode `llmwiki/` in a path.
+Read `bundle.root` from `wiki-sticky.yaml` at the repository root; it defaults to
+`wiki` if the key is absent. Call this `<bundle-root>` for the rest of this
+procedure — never hardcode `wiki/` in a path.
 
 ## 1. Classify the source
 
@@ -72,7 +72,7 @@ sources:
 One-paragraph answer to "what do I do", up top. Then detail. Link neighbours
 in prose: see [the ownership rules][ownership].
 
-[ownership]: /llmwiki/stack/pms/ownership.md
+[ownership]: /wiki/stack/pms/ownership.md
 ```
 
 `$schema` is the one path that stays relative (an editor JSON Schema
@@ -103,7 +103,7 @@ repository has one.
 
 ## 7. Lint and commit
 
-Run `llmwiki lint` and fix every finding. Make one squashed commit for the
+Run `wiki-sticky lint` and fix every finding. Make one squashed commit for the
 whole ingest:
 
 ```

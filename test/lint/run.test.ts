@@ -27,10 +27,10 @@ describe('runLint', () => {
       // skills: off — this fixture is about bundle-content conformance, not
       // skills sync state; check 12 would otherwise warn for five unlocked
       // shipped skills this fixture never installed.
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nskills: off\n',
-      'llmwiki/index.md': "---\nokf_version: '0.2'\n---\n\n# Root\n\n* [Data](/llmwiki/data/index.md) - data\n",
-      'llmwiki/data/index.md': '# Data\n\n* [Mongo](/llmwiki/data/mongo.md) - mongo\n',
-      'llmwiki/data/mongo.md': page('Mongo'),
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nskills: off\n',
+      'wiki/index.md': "---\nokf_version: '0.2'\n---\n\n# Root\n\n* [Data](/wiki/data/index.md) - data\n",
+      'wiki/data/index.md': '# Data\n\n* [Mongo](/wiki/data/mongo.md) - mongo\n',
+      'wiki/data/mongo.md': page('Mongo'),
     });
     const issues = runLint(contextFor(root));
     expect(issues).toEqual([]);
@@ -40,9 +40,9 @@ describe('runLint', () => {
 
   it('collects issues from multiple checks at once', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n',
-      'llmwiki/badName.md': '# No frontmatter\n\nSee [x](./nope.md).\n',
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n',
+      'wiki/badName.md': '# No frontmatter\n\nSee [x](./nope.md).\n',
     });
     const issues = runLint(contextFor(root));
     const checks = new Set(issues.map((i) => i.check));

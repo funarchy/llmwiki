@@ -68,7 +68,7 @@ export function syncDeps(repoRoot: string, config: Config, options: { frozen: bo
   }
 
   if (options.frozen && !locksEqual(previous, lock)) {
-    throw new Error(`${LOCK_FILENAME} is out of date — run \`llmwiki install\` without --frozen and commit the result.`);
+    throw new Error(`${LOCK_FILENAME} is out of date — run \`wiki-sticky install\` without --frozen and commit the result.`);
   }
 
   clearDeps(repoRoot, config.bundle.root);
@@ -104,7 +104,7 @@ export function rootIndexHints(repoRoot: string, config: Config, lock: Lock): st
 export function installCommand(cwd: string, options: { frozen: boolean }): number {
   const repoRoot = findRepoRoot(cwd);
   if (!repoRoot) {
-    throw new Error('No llmwiki.yaml found in this directory or any parent — run `llmwiki init` first.');
+    throw new Error('No wiki-sticky.yaml found in this directory or any parent — run `wiki-sticky init` first.');
   }
   const config = loadConfig(repoRoot);
   const { lock, bundles, warnings } = syncDeps(repoRoot, config, options);

@@ -12,7 +12,7 @@ import { syncDeps, rootIndexHints } from './install.js';
  */
 export function rmCommand(cwd: string, pkg: string): number {
   const repoRoot = findRepoRoot(cwd);
-  if (!repoRoot) throw new Error('No llmwiki.yaml found — run `llmwiki init` first.');
+  if (!repoRoot) throw new Error('No wiki-sticky.yaml found — run `wiki-sticky init` first.');
 
   const config = loadConfig(repoRoot);
   if (!config.deps[pkg]) throw new Error(`"${pkg}" is not a dependency.`);

@@ -3,7 +3,7 @@ import { stripCode } from '../md/links.js';
 export interface RewriteOptions {
   /** The producer's bundle root name, e.g. 'wiki'. */
   producerRoot: string;
-  /** The consumer's bundle root name, e.g. 'llmwiki'. */
+  /** The consumer's bundle root name, e.g. 'wiki-sticky'. */
   consumerRoot: string;
   /** The bundle's name in the consumer's deps/, e.g. '@funarchy/scenepad'. */
   bundleName: string;

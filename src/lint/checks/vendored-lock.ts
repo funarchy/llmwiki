@@ -74,7 +74,7 @@ export const vendoredLock: Check = (ctx) => {
         file: `${root}/deps`,
         check: 'vendored-lock',
         severity: 'error',
-        message: `vendored bundles exist with no ${LOCK_FILENAME} — run \`llmwiki install\``,
+        message: `vendored bundles exist with no ${LOCK_FILENAME} — run \`wiki-sticky install\``,
       });
     }
     // Fall through to the config-vs-lock comparison below (empty lockNames):
@@ -93,7 +93,7 @@ export const vendoredLock: Check = (ctx) => {
           file: `${root}/deps/${name}`,
           check: 'vendored-lock',
           severity: 'error',
-          message: `"${name}" is locked but not vendored — run \`llmwiki install\``,
+          message: `"${name}" is locked but not vendored — run \`wiki-sticky install\``,
         });
       }
     }
@@ -104,7 +104,7 @@ export const vendoredLock: Check = (ctx) => {
           file: `${root}/deps/${name}`,
           check: 'vendored-lock',
           severity: 'error',
-          message: `"${name}" is vendored under deps/ but has no ${LOCK_FILENAME} entry — hand-added? run \`llmwiki install\``,
+          message: `"${name}" is vendored under deps/ but has no ${LOCK_FILENAME} entry — hand-added? run \`wiki-sticky install\``,
         });
       }
     }
@@ -119,7 +119,7 @@ export const vendoredLock: Check = (ctx) => {
         file: CONFIG_FILENAME,
         check: 'vendored-lock',
         severity: 'error',
-        message: `"${name}" is declared in ${CONFIG_FILENAME} but not locked — run \`llmwiki install\``,
+        message: `"${name}" is declared in ${CONFIG_FILENAME} but not locked — run \`wiki-sticky install\``,
       });
     }
   }
@@ -149,7 +149,7 @@ export const vendoredLock: Check = (ctx) => {
         file: `${root}/deps/${name}`,
         check: 'vendored-lock',
         severity: 'error',
-        message: `lock is stale for "${name}" — run \`llmwiki install\``,
+        message: `lock is stale for "${name}" — run \`wiki-sticky install\``,
       });
       continue;
     }

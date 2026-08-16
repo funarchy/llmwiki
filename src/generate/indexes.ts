@@ -8,7 +8,7 @@ export function depsIndexContent(consumerRoot: string, lock: Lock): string {
     '# Dependency knowledge',
     '',
     'Bundles authored upstream and vendored into this repository. Read-only —',
-    'content here is written by `llmwiki install` and verified by `llmwiki lint`.',
+    'content here is written by `wiki-sticky install` and verified by `wiki-sticky lint`.',
     'To change a page, change it in the producing repository. `sources:` paths',
     "are relative to the producing package's own repository, not this one.",
     '',

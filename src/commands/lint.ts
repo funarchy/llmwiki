@@ -7,7 +7,7 @@ import '../lint/checks/index.js';
 export function buildContext(cwd: string): LintContext {
   const repoRoot = findRepoRoot(cwd);
   if (!repoRoot) {
-    throw new Error('No llmwiki.yaml found in this directory or any parent — run `llmwiki init` first.');
+    throw new Error('No wiki-sticky.yaml found in this directory or any parent — run `wiki-sticky init` first.');
   }
   const config = loadConfig(repoRoot);
   return {

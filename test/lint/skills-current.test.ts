@@ -11,8 +11,8 @@ import { contextFor } from '../helpers/lint.js';
 
 function setup(skillsMode: 'managed' | 'vendored' | 'off' = 'managed') {
   const repo = makeRepo({
-    'llmwiki.yaml': `version: 1\nbundle:\n  root: llmwiki\nskills: ${skillsMode}\n`,
-    'llmwiki/index.md': '# Root\n',
+    'wiki-sticky.yaml': `version: 1\nbundle:\n  root: wiki\nskills: ${skillsMode}\n`,
+    'wiki/index.md': '# Root\n',
   });
   return repo;
 }
@@ -38,12 +38,12 @@ describe('check: skills-current', () => {
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('warning');
     expect(issues[0].message).toContain(name);
-    expect(issues[0].message).toContain('llmwiki skills sync');
+    expect(issues[0].message).toContain('wiki-sticky skills sync');
   });
 
   it('warns when a shipped skill has no lock entry at all', () => {
     const repo = setup('managed');
-    // No sync at all: llmwiki-lock.json does not exist.
+    // No sync at all: wiki-sticky-lock.json does not exist.
     const issues = skillsCurrent(contextFor(repo));
     expect(issues.length).toBe(shippedSkills().length);
     expect(issues.every((i) => i.severity === 'warning')).toBe(true);

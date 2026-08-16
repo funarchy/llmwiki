@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path';
  * Returns the repo root.
  */
 export function makeRepo(files: Record<string, string>): string {
-  const root = mkdtempSync(join(tmpdir(), 'llmwiki-fx-'));
+  const root = mkdtempSync(join(tmpdir(), 'wiki-sticky-fx-'));
   for (const [relPath, content] of Object.entries(files)) {
     const abs = join(root, relPath);
     mkdirSync(dirname(abs), { recursive: true });
@@ -16,8 +16,8 @@ export function makeRepo(files: Record<string, string>): string {
   return root;
 }
 
-/** Minimal valid llmwiki.yaml body for a given bundle root. */
-export function configYaml(root = 'llmwiki'): string {
+/** Minimal valid wiki-sticky.yaml body for a given bundle root. */
+export function configYaml(root = 'wiki'): string {
   return `version: 1\nbundle:\n  root: ${root}\n`;
 }
 

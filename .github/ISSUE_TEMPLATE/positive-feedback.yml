@@ -4,7 +4,7 @@ body:
   - type: textarea
     id: context
     attributes:
-      label: What you used llmwiki for
+      label: What you used wiki-sticky for
       description: 'The repository, the task, the situation — as much as you can share.'
     validations:
       required: true

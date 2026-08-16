@@ -6,7 +6,7 @@ unusual, so here it is plainly.
 ## The contribution this project wants right now: an issue
 
 The scarcest resource at this stage is real-world problem reports.
-If llmwiki confused you, broke, fought your workflow, or is missing
+If wiki-sticky confused you, broke, fought your workflow, or is missing
 something you needed — [file an issue][new-issue]. That *is* the
 contribution, and it is more valuable right now than a pull request.
 
@@ -35,6 +35,6 @@ there.
 ## The mission
 
 Everything above serves one thing: solving
-[#1](https://github.com/funarchy/llmwiki/issues/1) well.
+[#1](https://github.com/funarchy/wiki-sticky/issues/1) well.
 
-[new-issue]: https://github.com/funarchy/llmwiki/issues/new/choose
+[new-issue]: https://github.com/funarchy/wiki-sticky/issues/new/choose

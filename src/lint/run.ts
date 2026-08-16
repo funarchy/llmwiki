@@ -22,7 +22,7 @@ export function runLint(ctx: LintContext): Issue[] {
 }
 
 export function formatIssues(issues: Issue[]): string {
-  if (issues.length === 0) return 'llmwiki lint ✓  no issues';
+  if (issues.length === 0) return 'wiki-sticky lint ✓  no issues';
 
   const lines = issues.map((i) => {
     const where = i.line === undefined ? i.file : `${i.file}:${i.line}`;
@@ -33,7 +33,7 @@ export function formatIssues(issues: Issue[]): string {
   const errors = issues.filter((i) => i.severity === 'error').length;
   const warnings = issues.length - errors;
   lines.push('');
-  lines.push(`llmwiki lint ✗  ${errors} error${errors === 1 ? '' : 's'}, ${warnings} warning${warnings === 1 ? '' : 's'}`);
+  lines.push(`wiki-sticky lint ✗  ${errors} error${errors === 1 ? '' : 's'}, ${warnings} warning${warnings === 1 ? '' : 's'}`);
   return lines.join('\n');
 }
 

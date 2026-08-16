@@ -1,6 +1,6 @@
 ---
 name: wiki-vendor
-description: Use when this repository depends on a third-party package that ships no llmwiki bundle of its own, and its documentation should be synthesized into the bundle so an agent can find it by navigation instead of an ad hoc web search. Not for first-party knowledge (use `wiki-ingest`) and not for a dependency that already publishes a real bundle (`llmwiki add` handles that directly).
+description: Use when this repository depends on a third-party package that ships no wiki-sticky bundle of its own, and its documentation should be synthesized into the bundle so an agent can find it by navigation instead of an ad hoc web search. Not for first-party knowledge (use `wiki-ingest`) and not for a dependency that already publishes a real bundle (`wiki-sticky add` handles that directly).
 ---
 
 # wiki-vendor
@@ -13,8 +13,8 @@ from the path alone.
 
 ## 0. Find the bundle root
 
-Read `bundle.root` from `llmwiki.yaml` at the repository root; it defaults to
-`llmwiki` if the key is absent. Write the new bundle to
+Read `bundle.root` from `wiki-sticky.yaml` at the repository root; it defaults to
+`wiki` if the key is absent. Write the new bundle to
 `<bundle-root>/vendor/<pkg>/`.
 
 ## 1. Gather source material, in priority order
@@ -71,7 +71,7 @@ knowing it is a best-effort synthesis, not upstream's own statement.
 
 ## 4. Record provenance
 
-Add an entry under `vendor:` in `llmwiki.yaml` naming where the synthesis
+Add an entry under `vendor:` in `wiki-sticky.yaml` naming where the synthesis
 came from:
 
 ```yaml
@@ -86,11 +86,11 @@ future `wiki-vendor` run knows what to refresh against.
 
 ## 5. Finish
 
-Run `llmwiki lint` and fix findings, same as any other wiki write.
+Run `wiki-sticky lint` and fix findings, same as any other wiki write.
 
 ## The collision rule
 
-If `llmwiki add <pkg>` later finds that the dependency now publishes a real
+If `wiki-sticky add <pkg>` later finds that the dependency now publishes a real
 upstream bundle, it does not silently shadow the local synthesis — it
 reports the collision and offers to retire `vendor/<pkg>/`. Take that offer:
 a real upstream bundle in `deps/` is strictly more trustworthy than a

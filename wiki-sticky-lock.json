@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "bundles": {},
+  "skills": {
+    "wiki-eval": "sha256-8e5e8dbdcfd329c8cb7fc430896d87b3c7d06da96cea4c9ef3b5f63a39f466ba",
+    "wiki-ingest": "sha256-1a9d388fa304af74067b0cf564aefed153aca98e32c7d899b79fc7dcf3710737",
+    "wiki-review": "sha256-afb35f53879a1db9df25127c831252f51ec25225f2dfad1faae4fa6596b0b00f",
+    "wiki-search": "sha256-73b06d7436852a950d6c1306f4a2b4c8d7d59b4524b4292353720d595cea4ebf",
+    "wiki-vendor": "sha256-7469b932b751dcda16db6c8330b69e4f2c407cc427a154007c2f3b5229b0ecef"
+  }
+}

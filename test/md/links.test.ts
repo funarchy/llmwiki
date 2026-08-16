@@ -33,27 +33,27 @@ describe('stripCode', () => {
 
 describe('extractLinks', () => {
   it('extracts reference definitions with line numbers offset by the body start', () => {
-    const body = ['Text.', '', '[data]: /llmwiki/data/index.md'].join('\n');
+    const body = ['Text.', '', '[data]: /wiki/data/index.md'].join('\n');
     const links = extractLinks(body, 5);
     expect(links).toEqual([
-      { ref: 'data', href: '/llmwiki/data/index.md', line: 7, style: 'reference-definition' },
+      { ref: 'data', href: '/wiki/data/index.md', line: 7, style: 'reference-definition' },
     ]);
   });
 
   it('extracts inline links', () => {
-    const links = extractLinks('See [child](/llmwiki/data/child.md) now.', 1);
+    const links = extractLinks('See [child](/wiki/data/child.md) now.', 1);
     expect(links).toEqual([
-      { href: '/llmwiki/data/child.md', line: 1, style: 'inline' },
+      { href: '/wiki/data/child.md', line: 1, style: 'inline' },
     ]);
   });
 
   it('strips fragments from hrefs', () => {
-    const links = extractLinks('[a]: /llmwiki/x.md#section', 1);
-    expect(links[0].href).toBe('/llmwiki/x.md');
+    const links = extractLinks('[a]: /wiki/x.md#section', 1);
+    expect(links[0].href).toBe('/wiki/x.md');
   });
 
   it('ignores links inside fenced code blocks', () => {
-    const body = ['```markdown', '[a]: /llmwiki/x.md', '```'].join('\n');
+    const body = ['```markdown', '[a]: /wiki/x.md', '```'].join('\n');
     expect(extractLinks(body, 1)).toEqual([]);
   });
 
@@ -73,28 +73,28 @@ describe('extractLinks', () => {
   });
 
   it('ignores links inside a tilde fence', () => {
-    const body = ['~~~markdown', '[a]: /llmwiki/x.md', '~~~'].join('\n');
+    const body = ['~~~markdown', '[a]: /wiki/x.md', '~~~'].join('\n');
     expect(extractLinks(body, 1)).toEqual([]);
   });
 
   it('finds a reference definition indented up to three spaces', () => {
-    const links = extractLinks('   [a]: /llmwiki/x.md', 1);
+    const links = extractLinks('   [a]: /wiki/x.md', 1);
     expect(links).toEqual([
-      { ref: 'a', href: '/llmwiki/x.md', line: 1, style: 'reference-definition' },
+      { ref: 'a', href: '/wiki/x.md', line: 1, style: 'reference-definition' },
     ]);
   });
 
   it('treats an image as a link, so the reference-style rule covers it too', () => {
-    const links = extractLinks('![diagram](/llmwiki/img/d.png)', 2);
+    const links = extractLinks('![diagram](/wiki/img/d.png)', 2);
     expect(links).toEqual([
-      { href: '/llmwiki/img/d.png', line: 2, style: 'inline' },
+      { href: '/wiki/img/d.png', line: 2, style: 'inline' },
     ]);
   });
 });
 
 describe('resolveRepoAbsolute', () => {
   it('resolves an href inside the repository root', () => {
-    expect(resolveRepoAbsolute('/repo', '/llmwiki/x.md')).toBe(join('/repo', 'llmwiki', 'x.md'));
+    expect(resolveRepoAbsolute('/repo', '/wiki/x.md')).toBe(join('/repo', 'wiki', 'x.md'));
   });
 
   it('returns null for an href that climbs out of the repository root', () => {
@@ -102,6 +102,6 @@ describe('resolveRepoAbsolute', () => {
   });
 
   it('resolves interior traversal that stays inside the root', () => {
-    expect(resolveRepoAbsolute('/repo', '/llmwiki/../llmwiki/x.md')).toBe(join('/repo', 'llmwiki', 'x.md'));
+    expect(resolveRepoAbsolute('/repo', '/wiki/../wiki/x.md')).toBe(join('/repo', 'wiki', 'x.md'));
   });
 });

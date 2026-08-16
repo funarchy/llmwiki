@@ -46,14 +46,14 @@ describe('vendorBundle', () => {
     });
     const consumerRepo = makeRepo({});
 
-    vendorBundle(consumerRepo, 'llmwiki', scopedBundle(producerDir));
+    vendorBundle(consumerRepo, 'wiki', scopedBundle(producerDir));
 
-    const destRoot = join(consumerRepo, 'llmwiki', 'deps', '@x', 'scenepad');
+    const destRoot = join(consumerRepo, 'wiki', 'deps', '@x', 'scenepad');
     expect(readFileSync(join(destRoot, 'index.md'), 'utf-8')).toBe(
-      '# scenepad\n\n* [Topic](/llmwiki/deps/@x/scenepad/topic.md) - the one topic\n',
+      '# scenepad\n\n* [Topic](/wiki/deps/@x/scenepad/topic.md) - the one topic\n',
     );
     expect(readFileSync(join(destRoot, 'topic.md'), 'utf-8')).toBe(
-      '# Topic\n\n[a]: /llmwiki/deps/@x/scenepad/index.md\n',
+      '# Topic\n\n[a]: /wiki/deps/@x/scenepad/index.md\n',
     );
   });
 
@@ -72,9 +72,9 @@ describe('vendorBundle', () => {
     writeFileSync(assetPath, assetBytes);
     const consumerRepo = makeRepo({});
 
-    vendorBundle(consumerRepo, 'llmwiki', scopedBundle(producerDir));
+    vendorBundle(consumerRepo, 'wiki', scopedBundle(producerDir));
 
-    const destAsset = join(consumerRepo, 'llmwiki', 'deps', '@x', 'scenepad', 'asset.png');
+    const destAsset = join(consumerRepo, 'wiki', 'deps', '@x', 'scenepad', 'asset.png');
     expect(readFileSync(destAsset)).toEqual(assetBytes);
   });
 
@@ -91,9 +91,9 @@ describe('vendorBundle', () => {
     });
     const consumerRepo = makeRepo({});
 
-    vendorBundle(consumerRepo, 'llmwiki', scopedBundle(producerDir));
+    vendorBundle(consumerRepo, 'wiki', scopedBundle(producerDir));
 
-    const destRoot = join(consumerRepo, 'llmwiki', 'deps', '@x', 'scenepad');
+    const destRoot = join(consumerRepo, 'wiki', 'deps', '@x', 'scenepad');
     expect(existsSync(join(destRoot, '_meta'))).toBe(false);
     expect(existsSync(join(destRoot, 'README.md'))).toBe(false);
   });
@@ -109,7 +109,7 @@ describe('vendorBundle', () => {
     });
     const consumerRepo = makeRepo({});
 
-    const warnings = vendorBundle(consumerRepo, 'llmwiki', scopedBundle(producerDir));
+    const warnings = vendorBundle(consumerRepo, 'wiki', scopedBundle(producerDir));
 
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toMatch(/^@x\/scenepad\/index\.md: /);
@@ -119,15 +119,15 @@ describe('vendorBundle', () => {
     const producerDir = makeRepo({});
     writeProducer(producerDir, { name: '@x/scenepad', root: 'wiki', files: { 'index.md': '# scenepad\n' } });
     const consumerRepo = makeRepo({});
-    vendorBundle(consumerRepo, 'llmwiki', scopedBundle(producerDir));
+    vendorBundle(consumerRepo, 'wiki', scopedBundle(producerDir));
 
-    const depsDir = join(consumerRepo, 'llmwiki', 'deps');
+    const depsDir = join(consumerRepo, 'wiki', 'deps');
     expect(existsSync(depsDir)).toBe(true);
-    clearDeps(consumerRepo, 'llmwiki');
+    clearDeps(consumerRepo, 'wiki');
     expect(existsSync(depsDir)).toBe(false);
 
     // Safe to call again when already absent.
-    expect(() => clearDeps(consumerRepo, 'llmwiki')).not.toThrow();
+    expect(() => clearDeps(consumerRepo, 'wiki')).not.toThrow();
   });
 
   it('is reproducible: vendoring the same bundle into two fresh repos yields identical trees', () => {
@@ -144,11 +144,11 @@ describe('vendorBundle', () => {
     const repoA = makeRepo({});
     const repoB = makeRepo({});
 
-    vendorBundle(repoA, 'llmwiki', scopedBundle(producerDir));
-    vendorBundle(repoB, 'llmwiki', scopedBundle(producerDir));
+    vendorBundle(repoA, 'wiki', scopedBundle(producerDir));
+    vendorBundle(repoB, 'wiki', scopedBundle(producerDir));
 
-    const rootA = join(repoA, 'llmwiki', 'deps');
-    const rootB = join(repoB, 'llmwiki', 'deps');
+    const rootA = join(repoA, 'wiki', 'deps');
+    const rootB = join(repoB, 'wiki', 'deps');
     const filesA = walk(rootA);
     const filesB = walk(rootB);
     expect(filesA).toEqual(filesB);

@@ -3,14 +3,14 @@ import { compileSchema, describeError, formatErrors, substantiveErrors } from '.
 
 describe('compileSchema', () => {
   it('compiles a shipped schema and memoizes it', () => {
-    const first = compileSchema('llmwiki.schema.json');
-    const second = compileSchema('llmwiki.schema.json');
+    const first = compileSchema('wiki-sticky.schema.json');
+    const second = compileSchema('wiki-sticky.schema.json');
     expect(first).toBe(second);
-    expect(first({ version: 1, bundle: { root: 'llmwiki' } })).toBe(true);
+    expect(first({ version: 1, bundle: { root: 'wiki' } })).toBe(true);
   });
 
   it('reports validation failures on the compiled function', () => {
-    const validate = compileSchema('llmwiki.schema.json');
+    const validate = compileSchema('wiki-sticky.schema.json');
     expect(validate({ version: 1 })).toBe(false);
     expect(formatErrors(validate.errors)).toMatch(/bundle/);
   });
@@ -71,20 +71,20 @@ describe('describeError', () => {
 
 describe('formatErrors', () => {
   it('drops structural noise when a substantive error is present', () => {
-    const validate = compileSchema('llmwiki.schema.json');
+    const validate = compileSchema('wiki-sticky.schema.json');
     validate({ version: 1, bundle: {}, deps: { a: { source: 'path' } } });
     const message = formatErrors(validate.errors);
     expect(message).toBe('missing required field: path');
   });
 
   it('falls back to structural errors when they are all there is', () => {
-    const validate = compileSchema('llmwiki.schema.json');
+    const validate = compileSchema('wiki-sticky.schema.json');
     validate({ version: 2, bundle: {} });
     expect(formatErrors(validate.errors)).toBe('/version must be exactly 1');
   });
 
   it('exposes the same filtering to per-error consumers', () => {
-    const validate = compileSchema('llmwiki.schema.json');
+    const validate = compileSchema('wiki-sticky.schema.json');
     validate({ version: 1, bundle: {}, deps: { a: { source: 'path' } } });
     const errors = substantiveErrors(validate.errors);
     expect(errors).toHaveLength(1);

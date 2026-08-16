@@ -33,7 +33,7 @@ export interface Link {
 export interface Page {
   /** Absolute path on disk. */
   absPath: string;
-  /** Path from the repo root, forward slashes, no leading slash: `llmwiki/data/mongo.md`. */
+  /** Path from the repo root, forward slashes, no leading slash: `wiki/data/mongo.md`. */
   repoPath: string;
   isIndex: boolean;
   frontmatter: Frontmatter | null;
@@ -45,7 +45,7 @@ export interface Page {
 export interface Bundle {
   /** Absolute path to the bundle root directory. */
   absRoot: string;
-  /** Bundle root from the repo root, no leading slash: `llmwiki`. */
+  /** Bundle root from the repo root, no leading slash: `wiki-sticky`. */
   root: string;
   pages: Page[];
 }
@@ -91,7 +91,7 @@ export interface ResolvedBundle {
   absDir: string;
   /** The producer's bundle root, relative to absDir. */
   producerRoot: string;
-  /** Deps the producer declares in its own llmwiki.yaml. */
+  /** Deps the producer declares in its own wiki-sticky.yaml. */
   declaredDeps: Record<string, DepSpec>;
   /** Requirers: '.' is the consumer itself. */
   requiredBy: string[];

@@ -1,11 +1,11 @@
 {
-  "name": "llmwiki",
+  "name": "wiki-sticky",
   "owner": {
     "name": "funarchy"
   },
   "plugins": [
     {
-      "name": "llmwiki",
+      "name": "wiki-sticky",
       "source": ".",
       "description": "OKF-conformant knowledge bundles with a dependency layer, plus the wiki-ingest/search/eval/review/vendor skillset that reads and writes them."
     }

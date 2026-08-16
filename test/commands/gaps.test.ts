@@ -19,74 +19,74 @@ const evalCase = (question: string, status: string, pagesNeeded?: string[]) =>
 describe('collectGaps', () => {
   it('collects to_resolve eval cases with their pages-needed', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n',
-      'llmwiki/_meta/eval/index.md': '# Eval\n',
-      'llmwiki/_meta/eval/add-a-drill.md': evalCase('How do I add a drill?', 'to_resolve', [
-        'llmwiki/drills/add-drill.md — how to add a drill',
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n',
+      'wiki/_meta/eval/index.md': '# Eval\n',
+      'wiki/_meta/eval/add-a-drill.md': evalCase('How do I add a drill?', 'to_resolve', [
+        'wiki/drills/add-drill.md — how to add a drill',
       ]),
-      'llmwiki/_meta/eval/what-is-pms.md': evalCase('What is PMS?', 'satisfied'),
+      'wiki/_meta/eval/what-is-pms.md': evalCase('What is PMS?', 'satisfied'),
     });
-    const gaps = collectGaps(root, 'llmwiki');
+    const gaps = collectGaps(root, 'wiki');
     expect(gaps.evalGaps).toHaveLength(1);
     expect(gaps.evalGaps[0].question).toBe('How do I add a drill?');
-    expect(gaps.evalGaps[0].pagesNeeded).toEqual(['llmwiki/drills/add-drill.md — how to add a drill']);
+    expect(gaps.evalGaps[0].pagesNeeded).toEqual(['wiki/drills/add-drill.md — how to add a drill']);
   });
 
   it('collects stub pages', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n\n* [Mongo](/llmwiki/mongo.md) - mongo\n',
-      'llmwiki/mongo.md': page('Mongo', '\n**Stub.** Needs writing.\n'),
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n\n* [Mongo](/wiki/mongo.md) - mongo\n',
+      'wiki/mongo.md': page('Mongo', '\n**Stub.** Needs writing.\n'),
     });
-    const gaps = collectGaps(root, 'llmwiki');
-    expect(gaps.stubs).toEqual([{ title: 'Mongo', repoPath: 'llmwiki/mongo.md' }]);
+    const gaps = collectGaps(root, 'wiki');
+    expect(gaps.stubs).toEqual([{ title: 'Mongo', repoPath: 'wiki/mongo.md' }]);
   });
 
   it('returns empty collections when there is nothing to report', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n',
     });
-    const gaps = collectGaps(root, 'llmwiki');
+    const gaps = collectGaps(root, 'wiki');
     expect(gaps.evalGaps).toEqual([]);
     expect(gaps.stubs).toEqual([]);
   });
 
   it('tolerates a missing _meta/eval directory', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n',
     });
-    expect(() => collectGaps(root, 'llmwiki')).not.toThrow();
+    expect(() => collectGaps(root, 'wiki')).not.toThrow();
   });
 
   it('skips an eval case whose frontmatter cannot be parsed', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n',
-      'llmwiki/_meta/eval/broken.md': '---\nquestion: [unclosed\n---\n',
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n',
+      'wiki/_meta/eval/broken.md': '---\nquestion: [unclosed\n---\n',
     });
-    expect(collectGaps(root, 'llmwiki').evalGaps).toEqual([]);
+    expect(collectGaps(root, 'wiki').evalGaps).toEqual([]);
   });
 
   it('does not treat a stub marker inside a code fence as a stub', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n\n* [Mongo](/llmwiki/mongo.md) - mongo\n',
-      'llmwiki/mongo.md': page('Mongo', '\n```\n**Stub.** example\n```\n'),
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n\n* [Mongo](/wiki/mongo.md) - mongo\n',
+      'wiki/mongo.md': page('Mongo', '\n```\n**Stub.** example\n```\n'),
     });
-    expect(collectGaps(root, 'llmwiki').stubs).toEqual([]);
+    expect(collectGaps(root, 'wiki').stubs).toEqual([]);
   });
 
   it('skips a directory in _meta/eval whose name ends in .md instead of throwing EISDIR', () => {
     const root = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n',
-      'llmwiki/_meta/eval/weird.md/inner.md': 'not an eval case',
-      'llmwiki/_meta/eval/real.md': evalCase('Real question?', 'to_resolve'),
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n',
+      'wiki/_meta/eval/weird.md/inner.md': 'not an eval case',
+      'wiki/_meta/eval/real.md': evalCase('Real question?', 'to_resolve'),
     });
-    const gaps = collectGaps(root, 'llmwiki');
+    const gaps = collectGaps(root, 'wiki');
     expect(gaps.evalGaps).toEqual([{ question: 'Real question?', pagesNeeded: [] }]);
   });
 });
@@ -100,12 +100,12 @@ describe('formatGaps', () => {
 
   it('lists questions with their needed pages', () => {
     const out = formatGaps({
-      evalGaps: [{ question: 'How do I add a drill?', pagesNeeded: ['llmwiki/a.md — a page'] }],
-      stubs: [{ title: 'Mongo', repoPath: 'llmwiki/mongo.md' }],
+      evalGaps: [{ question: 'How do I add a drill?', pagesNeeded: ['wiki/a.md — a page'] }],
+      stubs: [{ title: 'Mongo', repoPath: 'wiki/mongo.md' }],
     });
     expect(out).toContain('1. How do I add a drill?');
-    expect(out).toContain('llmwiki/a.md — a page');
-    expect(out).toContain('Mongo - llmwiki/mongo.md');
+    expect(out).toContain('wiki/a.md — a page');
+    expect(out).toContain('Mongo - wiki/mongo.md');
   });
 
   it('notes when a gap needs no new pages', () => {
