@@ -1,0 +1,38 @@
+name: Pollution
+description: 'A problem: harm, friction, a gap. Describe the problem — not the solution.'
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: "What's polluted"
+      description: 'The problem as observed. No prescribed solutions here.'
+    validations:
+      required: true
+  - type: textarea
+    id: affects
+    attributes:
+      label: Who it affects and how
+      description: 'Users, agents, the maintainer, downstream repositories — and what it does to them.'
+    validations:
+      required: true
+  - type: textarea
+    id: cost
+    attributes:
+      label: Cost of not fixing
+      description: 'What keeps being paid while this lives.'
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance criteria
+      description: 'How to know the pollution is gone.'
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution (optional)
+      description: 'Only to clarify the picture — not a call to action.'
+    validations:
+      required: false
