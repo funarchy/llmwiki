@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Lock } from './types.js';
 
-export const LOCK_FILENAME = 'llmwiki-lock.json';
+export const LOCK_FILENAME = 'wiki-sticky-lock.json';
 
 export function readLock(repoRoot: string): Lock | null {
   const path = join(repoRoot, LOCK_FILENAME);

@@ -31,7 +31,7 @@ export function diffLocks(before: Lock | null, after: Lock): string[] {
  */
 export function updateCommand(cwd: string, pkg?: string): number {
   const repoRoot = findRepoRoot(cwd);
-  if (!repoRoot) throw new Error('No llmwiki.yaml found — run `llmwiki init` first.');
+  if (!repoRoot) throw new Error('No wiki-sticky.yaml found — run `wiki-sticky init` first.');
 
   const config = loadConfig(repoRoot);
   if (pkg && !config.deps[pkg]) throw new Error(`"${pkg}" is not a dependency.`);

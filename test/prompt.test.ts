@@ -17,24 +17,24 @@ function streams(input: string) {
 describe('ask', () => {
   it('returns the typed answer', async () => {
     const { stdin, stdout } = streams('knowledge\n');
-    await expect(ask('Bundle root', 'llmwiki', { stdin, stdout })).resolves.toBe('knowledge');
+    await expect(ask('Bundle root', 'wiki', { stdin, stdout })).resolves.toBe('knowledge');
   });
 
   it('returns the default on an empty answer', async () => {
     const { stdin, stdout } = streams('\n');
-    await expect(ask('Bundle root', 'llmwiki', { stdin, stdout })).resolves.toBe('llmwiki');
+    await expect(ask('Bundle root', 'wiki', { stdin, stdout })).resolves.toBe('wiki');
   });
 
   it('shows the default in the prompt text', async () => {
     const { stdin, stdout, chunks } = streams('\n');
-    await ask('Bundle root', 'llmwiki', { stdin, stdout });
-    expect(chunks.join('')).toContain('llmwiki');
+    await ask('Bundle root', 'wiki', { stdin, stdout });
+    expect(chunks.join('')).toContain('wiki');
   });
 
   it('resolves to the fallback when stdin ends without an answer', async () => {
     const stdin = Readable.from([]) as unknown as NodeJS.ReadableStream;
     const stdout = streams('').stdout;
-    await expect(ask('Bundle root', 'llmwiki', { stdin, stdout })).resolves.toBe('llmwiki');
+    await expect(ask('Bundle root', 'wiki', { stdin, stdout })).resolves.toBe('wiki');
   }, 2000);
 });
 

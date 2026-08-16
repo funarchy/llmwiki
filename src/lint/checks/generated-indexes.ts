@@ -25,7 +25,7 @@ export const generatedIndexes: Check = (ctx) => {
         file: `${root}/deps/index.md`,
         check: 'generated-indexes',
         severity: 'error',
-        message: 'generated index is stale — run `llmwiki install`',
+        message: 'generated index is stale — run `wiki-sticky install`',
       });
     }
   }
@@ -40,7 +40,7 @@ export const generatedIndexes: Check = (ctx) => {
         file: `${root}/vendor/index.md`,
         check: 'generated-indexes',
         severity: 'error',
-        message: 'generated index is stale — run `llmwiki install`',
+        message: 'generated index is stale — run `wiki-sticky install`',
       });
     }
   }

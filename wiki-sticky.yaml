@@ -1,0 +1,11 @@
+version: 1
+
+bundle:
+  root: wiki
+
+deps: {}
+
+vendor: {}
+
+skills: managed
+mode: copy

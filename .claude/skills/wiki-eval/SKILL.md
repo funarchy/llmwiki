@@ -11,8 +11,8 @@ land on a correct answer. Four modes, all operating on case files under
 
 ## 0. Find the bundle root
 
-Read `bundle.root` from `llmwiki.yaml` at the repository root; it defaults to
-`llmwiki` if the key is absent. Case files live at
+Read `bundle.root` from `wiki-sticky.yaml` at the repository root; it defaults to
+`wiki` if the key is absent. Case files live at
 `<bundle-root>/_meta/eval/<kebab-case-question>.md`.
 
 ## Case file shape

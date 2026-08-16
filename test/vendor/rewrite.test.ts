@@ -3,36 +3,36 @@ import { rewritePage } from '../../src/vendor/rewrite.js';
 
 const opts = {
   producerRoot: 'wiki',
-  consumerRoot: 'llmwiki',
+  consumerRoot: 'wiki',
   bundleName: '@x/scenepad',
 };
 
 describe('rewritePage', () => {
   it('rewrites the producer own-page href, and does not double-edit a ref-def line that also looks like an inline link', () => {
     const { content, warnings } = rewritePage('[a]: /wiki/pms/traits.md\n', opts);
-    expect(content).toBe('[a]: /llmwiki/deps/@x/scenepad/pms/traits.md\n');
+    expect(content).toBe('[a]: /wiki/deps/@x/scenepad/pms/traits.md\n');
     expect(warnings).toEqual([]);
 
     // Watch item 2: a ref-def line whose trailing text also looks like an inline
     // link must take the ref-def branch only — the embedded "link" is untouched.
     const { content: mixed } = rewritePage('[a]: /wiki/x.md "see [b](/wiki/y.md) also"\n', opts);
-    expect(mixed).toBe('[a]: /llmwiki/deps/@x/scenepad/x.md "see [b](/wiki/y.md) also"\n');
+    expect(mixed).toBe('[a]: /wiki/deps/@x/scenepad/x.md "see [b](/wiki/y.md) also"\n');
 
     // Verify offset-exactness on an indented reference definition (up to 3
     // leading spaces are valid per CommonMark).
     const { content: indented } = rewritePage('   [a]: /wiki/x.md\n', opts);
-    expect(indented).toBe('   [a]: /llmwiki/deps/@x/scenepad/x.md\n');
+    expect(indented).toBe('   [a]: /wiki/deps/@x/scenepad/x.md\n');
   });
 
   it('rewrites a cross-bundle href flat, not nested, and treats a same-named directory as a non-boundary', () => {
     const { content, warnings } = rewritePage('[k]: /wiki/deps/@x/koota/traits.md\n', opts);
-    expect(content).toBe('[k]: /llmwiki/deps/@x/koota/traits.md\n');
+    expect(content).toBe('[k]: /wiki/deps/@x/koota/traits.md\n');
     expect(warnings).toEqual([]);
 
     // Watch item 4: '/wiki/depsfoo/...' is a directory named "depsfoo", not the
     // producer's deps/ tree — must be treated as an ordinary own-page href.
     const { content: notDeps } = rewritePage('[d]: /wiki/depsfoo/x.md\n', opts);
-    expect(notDeps).toBe('[d]: /llmwiki/deps/@x/scenepad/depsfoo/x.md\n');
+    expect(notDeps).toBe('[d]: /wiki/deps/@x/scenepad/depsfoo/x.md\n');
   });
 
   it('leaves a producer vendor/ link unchanged with a warning', () => {
@@ -51,7 +51,7 @@ describe('rewritePage', () => {
 
   it('rewrites a bare producer deps href to the bare consumer deps form', () => {
     const { content, warnings } = rewritePage('[b]: /wiki/deps\n', opts);
-    expect(content).toBe('[b]: /llmwiki/deps\n');
+    expect(content).toBe('[b]: /wiki/deps\n');
     expect(warnings).toEqual([]);
   });
 
@@ -64,12 +64,12 @@ describe('rewritePage', () => {
 
   it('preserves the fragment', () => {
     const { content } = rewritePage('[a]: /wiki/a.md#s\n', opts);
-    expect(content).toBe('[a]: /llmwiki/deps/@x/scenepad/a.md#s\n');
+    expect(content).toBe('[a]: /wiki/deps/@x/scenepad/a.md#s\n');
   });
 
   it('rewrites an inline link in an index body', () => {
     const { content, warnings } = rewritePage('* [Topic](/wiki/topic.md) - the one topic\n', opts);
-    expect(content).toBe('* [Topic](/llmwiki/deps/@x/scenepad/topic.md) - the one topic\n');
+    expect(content).toBe('* [Topic](/wiki/deps/@x/scenepad/topic.md) - the one topic\n');
     expect(warnings).toEqual([]);
   });
 
@@ -83,7 +83,7 @@ describe('rewritePage', () => {
   it('warns on an unclosed code fence and still rewrites the link-shaped text after it (recorded behaviour)', () => {
     const input = ['```', 'not really code', '[a]: /wiki/pms/traits.md', ''].join('\n');
     const { content, warnings } = rewritePage(input, opts);
-    expect(content).toContain('[a]: /llmwiki/deps/@x/scenepad/pms/traits.md');
+    expect(content).toContain('[a]: /wiki/deps/@x/scenepad/pms/traits.md');
     expect(warnings).toContain('unclosed code fence — link-shaped text after it is rewritten as prose');
   });
 
@@ -100,13 +100,13 @@ describe('rewritePage', () => {
   });
 
   it('matching roots: own-page hrefs still gain the deps/<name> segment, while cross-bundle hrefs are the actual no-op', () => {
-    const sameRootOpts = { producerRoot: 'llmwiki', consumerRoot: 'llmwiki', bundleName: '@x/scenepad' };
-    const { content: ownPage, warnings: w1 } = rewritePage('[a]: /llmwiki/pms/traits.md\n', sameRootOpts);
-    expect(ownPage).toBe('[a]: /llmwiki/deps/@x/scenepad/pms/traits.md\n');
+    const sameRootOpts = { producerRoot: 'wiki', consumerRoot: 'wiki', bundleName: '@x/scenepad' };
+    const { content: ownPage, warnings: w1 } = rewritePage('[a]: /wiki/pms/traits.md\n', sameRootOpts);
+    expect(ownPage).toBe('[a]: /wiki/deps/@x/scenepad/pms/traits.md\n');
     expect(w1).toEqual([]);
 
-    const { content: crossBundle, warnings: w2 } = rewritePage('[k]: /llmwiki/deps/@x/koota/traits.md\n', sameRootOpts);
-    expect(crossBundle).toBe('[k]: /llmwiki/deps/@x/koota/traits.md\n');
+    const { content: crossBundle, warnings: w2 } = rewritePage('[k]: /wiki/deps/@x/koota/traits.md\n', sameRootOpts);
+    expect(crossBundle).toBe('[k]: /wiki/deps/@x/koota/traits.md\n');
     expect(w2).toEqual([]);
   });
 
@@ -121,6 +121,6 @@ describe('rewritePage', () => {
 
   it('normalizes CRLF input and still rewrites', () => {
     const { content } = rewritePage('[a]: /wiki/pms/traits.md\r\n', opts);
-    expect(content).toBe('[a]: /llmwiki/deps/@x/scenepad/pms/traits.md\n');
+    expect(content).toBe('[a]: /wiki/deps/@x/scenepad/pms/traits.md\n');
   });
 });

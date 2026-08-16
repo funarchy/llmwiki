@@ -26,13 +26,13 @@ async function runAction(work: () => number | Promise<number>): Promise<void> {
 const program = new Command();
 
 program
-  .name('llmwiki')
+  .name('wiki-sticky')
   .description('OKF knowledge bundles with dependencies')
   .showHelpAfterError();
 
 program
   .command('init')
-  .description('scaffold an llmwiki bundle in this repository')
+  .description('scaffold an wiki-sticky bundle in this repository')
   .option('-y, --yes', 'accept all defaults without prompting', false)
   .action(async (opts: { yes: boolean }) => {
     await runAction(() => initCommand(process.cwd(), { yes: opts.yes }));

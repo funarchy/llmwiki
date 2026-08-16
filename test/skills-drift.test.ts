@@ -19,13 +19,13 @@ function registeredCommands(): Set<string> {
   return names;
 }
 
-/** Every `` `llmwiki <word>` `` mention in a SKILL.md body. */
+/** Every `` `wiki-sticky <word>` `` mention in a SKILL.md body. */
 function mentionedCommands(skillContent: string): string[] {
-  return [...skillContent.matchAll(/`llmwiki ([a-zA-Z-]+)/g)].map((m) => m[1]);
+  return [...skillContent.matchAll(/`wiki-sticky ([a-zA-Z-]+)/g)].map((m) => m[1]);
 }
 
 describe('skills drift guard', () => {
-  it('every `llmwiki <cmd>` mentioned in a SKILL.md names a real registered CLI command', () => {
+  it('every `wiki-sticky <cmd>` mentioned in a SKILL.md names a real registered CLI command', () => {
     const commands = registeredCommands();
     expect(commands.size).toBeGreaterThan(0);
 
@@ -39,7 +39,7 @@ describe('skills drift guard', () => {
     for (const name of skillNames) {
       const content = readFileSync(join(skillsDir, name, 'SKILL.md'), 'utf-8');
       for (const word of mentionedCommands(content)) {
-        if (!commands.has(word)) unknown.push(`${name}/SKILL.md mentions unknown command "llmwiki ${word}"`);
+        if (!commands.has(word)) unknown.push(`${name}/SKILL.md mentions unknown command "wiki-sticky ${word}"`);
       }
     }
 

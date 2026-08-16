@@ -17,18 +17,18 @@ function run(args: string[], cwd: string): { stdout: string; status: number } {
 }
 
 function setSkillsMode(cwd: string, mode: 'managed' | 'vendored' | 'off'): void {
-  const path = join(cwd, 'llmwiki.yaml');
+  const path = join(cwd, 'wiki-sticky.yaml');
   const content = readFileSync(path, 'utf-8').replace(/^skills: \w+$/m, `skills: ${mode}`);
   writeFileSync(path, content);
 }
 
-describe('llmwiki skillset (CLI end to end)', () => {
+describe('wiki-sticky skillset (CLI end to end)', () => {
   beforeAll(() => {
     execFileSync('npm', ['run', 'build'], { cwd: packageRoot(), stdio: 'ignore' });
   });
 
   it('init --yes installs the five skills into both trees and locks five hashes', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-skills-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-skills-'));
     const init = run(['init', '--yes'], cwd);
     expect(init.status).toBe(0);
 
@@ -39,14 +39,14 @@ describe('llmwiki skillset (CLI end to end)', () => {
       expect(existsSync(join(cwd, '.agents', 'skills', name, 'SKILL.md'))).toBe(true);
     }
 
-    const lock = JSON.parse(readFileSync(join(cwd, 'llmwiki-lock.json'), 'utf-8')) as {
+    const lock = JSON.parse(readFileSync(join(cwd, 'wiki-sticky-lock.json'), 'utf-8')) as {
       skills: Record<string, string>;
     };
     expect(Object.keys(lock.skills).sort()).toEqual([...names].sort());
   });
 
   it('corrupting an installed skill then `skills sync` restores it (managed mode)', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-skills-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-skills-'));
     run(['init', '--yes'], cwd);
 
     const name = shippedSkills()[0];
@@ -61,10 +61,10 @@ describe('llmwiki skillset (CLI end to end)', () => {
   });
 
   it('lint exits 0 but reports a warning when a stale skill hash is planted in the lock', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-skills-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-skills-'));
     run(['init', '--yes'], cwd);
 
-    const lockPath = join(cwd, 'llmwiki-lock.json');
+    const lockPath = join(cwd, 'wiki-sticky-lock.json');
     const lock = JSON.parse(readFileSync(lockPath, 'utf-8')) as { skills: Record<string, string> };
     const name = shippedSkills()[0];
     lock.skills[name] = 'sha256-0000000000000000000000000000000000000000000000000000000000000000';
@@ -78,7 +78,7 @@ describe('llmwiki skillset (CLI end to end)', () => {
   });
 
   it('`skills sync` with skills: off is a no-op that says so', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-skills-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-skills-'));
     run(['init', '--yes'], cwd);
     setSkillsMode(cwd, 'off');
 

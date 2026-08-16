@@ -1,7 +1,7 @@
-# llmwiki
+# wiki-sticky
 
 This repository's mission is to solve
-[#1](https://github.com/funarchy/llmwiki/issues/1) well.
+[#1](https://github.com/funarchy/wiki-sticky/issues/1) well.
 
 A knowledge base that lives in your repository — [OKF](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)-conformant
 markdown pages that agents navigate along explicit links instead of similarity
@@ -15,27 +15,34 @@ and the agent skillset (five skills, `skills sync`, hash-locking) all ship.
 
 ## Quick start
 
+One command, in any repository:
+
 ```bash
-npm install --save-dev @funarchy/llmwiki
-npx llmwiki init          # scaffold llmwiki/, llmwiki.yaml and the skillset
+npx wiki-sticky init          # scaffold wiki/, wiki-sticky.yaml and the skillset
 ```
 
-The package is [`@funarchy/llmwiki`](https://www.npmjs.com/package/@funarchy/llmwiki);
-the binary it installs is plain `llmwiki`:
+Then pin it, so the pre-commit hook and CI run the version you chose:
 
 ```bash
-npx llmwiki lint          # hold the bundle to the schema
-npx llmwiki gaps          # list unresolved eval cases and stub pages
-npx llmwiki add <pkg>     # resolve, vendor and lock a dependency
-npx llmwiki rm <pkg>      # remove a dependency and re-sync
-npx llmwiki install --frozen   # verify the vendored tree matches the lock (CI)
-npx llmwiki update [pkg]  # re-resolve and report the knowledge diff
-npx llmwiki skills sync   # reinstall skills from the installed CLI version
+npm install --save-dev wiki-sticky
+```
+
+Every command works through [`npx wiki-sticky`](https://www.npmjs.com/package/wiki-sticky),
+installed or not:
+
+```bash
+npx wiki-sticky lint          # hold the bundle to the schema
+npx wiki-sticky gaps          # list unresolved eval cases and stub pages
+npx wiki-sticky add <pkg>     # resolve, vendor and lock a dependency
+npx wiki-sticky rm <pkg>      # remove a dependency and re-sync
+npx wiki-sticky install --frozen   # verify the vendored tree matches the lock (CI)
+npx wiki-sticky update [pkg]  # re-resolve and report the knowledge diff
+npx wiki-sticky skills sync   # reinstall skills from the installed CLI version
 ```
 
 ## Skills
 
-`llmwiki init` (and `llmwiki skills sync`) installs five model-invoked
+`wiki-sticky init` (and `wiki-sticky skills sync`) installs five model-invoked
 skills into both `.claude/skills/` and `.agents/skills/`, canonically
 `skills/wiki-*/SKILL.md` in this repository:
 
@@ -53,7 +60,7 @@ skills into both `.claude/skills/` and `.agents/skills/`, canonically
   none, sourced from `llms.txt` / docs / README / docs site, marked
   `generated: true`, with coverage stated honestly.
 
-`llmwiki.yaml`'s `skills:` setting controls installation: `managed`
+`wiki-sticky.yaml`'s `skills:` setting controls installation: `managed`
 (default) keeps both trees synced to the CLI's shipped copies; `vendored`
 installs once and never overwrites local edits; `off` leaves skill
 installation to the plugin path instead (`.claude-plugin/`, for
@@ -69,7 +76,7 @@ see [CONTRIBUTING.md](CONTRIBUTING.md) for the honest why.
 ## Design
 
 The design — format, dependency model, trust boundaries — is documented
-in this repository's own bundle: start at [llmwiki/index.md](llmwiki/index.md).
+in this repository's own bundle: start at [wiki/index.md](wiki/index.md).
 
 ## Development
 

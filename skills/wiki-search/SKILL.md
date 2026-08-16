@@ -1,6 +1,6 @@
 ---
 name: wiki-search
-description: Use when a question about how this repository or product works could be answered from the llmwiki bundle instead of general knowledge or grepping the codebase — "how does X work", "where is Y decided", "what's the policy on Z". Prefer this over answering from memory or from a plain code search whenever a bundle exists.
+description: Use when a question about how this repository or product works could be answered from the wiki-sticky bundle instead of general knowledge or grepping the codebase — "how does X work", "where is Y decided", "what's the policy on Z". Prefer this over answering from memory or from a plain code search whenever a bundle exists.
 ---
 
 # wiki-search
@@ -10,8 +10,8 @@ citation, not invention.
 
 ## 0. Find the bundle root
 
-Read `bundle.root` from `llmwiki.yaml` at the repository root; it defaults to
-`llmwiki` if the key is absent. Call this `<bundle-root>` below.
+Read `bundle.root` from `wiki-sticky.yaml` at the repository root; it defaults to
+`wiki` if the key is absent. Call this `<bundle-root>` below.
 
 ## 1. Navigate, don't grep
 
@@ -33,8 +33,8 @@ and ignoring the rest. Cite every page used, by its repo-root-absolute path,
 for example:
 
 > Channel wiring happens in `channel()`; ownership of the resulting state is
-> decided per the rules in `/llmwiki/stack/pms/ownership.md`
-> (`/llmwiki/stack/pms/runtime.md`).
+> decided per the rules in `/wiki/stack/pms/ownership.md`
+> (`/wiki/stack/pms/runtime.md`).
 
 ## 3. Report which subtree each part came from
 

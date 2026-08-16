@@ -8,7 +8,7 @@ import type { Config, DepSpec } from '../../src/types.js';
 function config(deps: Record<string, DepSpec>): Config {
   return {
     version: 1,
-    bundle: { root: 'llmwiki' },
+    bundle: { root: 'wiki' },
     deps,
     vendor: {},
     skills: 'managed',

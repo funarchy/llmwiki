@@ -15,8 +15,8 @@ function setup() {
     // skills: off — this fixture is about vendored-dep lint conformance, not
     // skills sync state; check 12 would otherwise warn for five unlocked
     // shipped skills this fixture never installed.
-    'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nskills: off\ndeps:\n  a: npm\n',
-    'llmwiki/index.md': '# Root\n\n* [Dependencies](/llmwiki/deps/index.md) - vendored knowledge\n',
+    'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nskills: off\ndeps:\n  a: npm\n',
+    'wiki/index.md': '# Root\n\n* [Dependencies](/wiki/deps/index.md) - vendored knowledge\n',
   });
   writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
   syncDeps(repo, loadConfig(repo), { frozen: false });
@@ -31,12 +31,12 @@ describe('check: vendored-lock', () => {
 
   it('flags a hand-edited vendored page, naming the file', () => {
     const repo = setup();
-    const pagePath = join(repo, 'llmwiki', 'deps', 'a', 'topic.md');
+    const pagePath = join(repo, 'wiki', 'deps', 'a', 'topic.md');
     writeFileSync(pagePath, 'HAND-EDITED\n');
     const issues = vendoredLock(contextFor(repo));
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('error');
-    expect(issues[0].file).toBe('llmwiki/deps/a/topic.md');
+    expect(issues[0].file).toBe('wiki/deps/a/topic.md');
   });
 
   it('downgrades to a warning when the producer is no longer installed, and exit stays 0', () => {
@@ -55,7 +55,7 @@ describe('check: vendored-lock', () => {
 
   it('flags a stale hash when the producer content changed since install', () => {
     const repo = setup();
-    writeFileSync(join(repo, 'node_modules', 'a', 'llmwiki', 'topic.md'), '# Topic\n\nChanged upstream.\n');
+    writeFileSync(join(repo, 'node_modules', 'a', 'wiki', 'topic.md'), '# Topic\n\nChanged upstream.\n');
     const issues = vendoredLock(contextFor(repo));
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('error');
@@ -64,15 +64,15 @@ describe('check: vendored-lock', () => {
 
   it('flags a hand-added bundle directory under deps/ not present in the lock', () => {
     const repo = setup();
-    mkdirSync(join(repo, 'llmwiki', 'deps', 'extra'), { recursive: true });
-    writeFileSync(join(repo, 'llmwiki', 'deps', 'extra', 'index.md'), '# Extra\n');
+    mkdirSync(join(repo, 'wiki', 'deps', 'extra'), { recursive: true });
+    writeFileSync(join(repo, 'wiki', 'deps', 'extra', 'index.md'), '# Extra\n');
     const issues = vendoredLock(contextFor(repo));
     expect(issues.some((i) => i.severity === 'error' && i.file.includes('extra'))).toBe(true);
   });
 
   it('flags a lock entry whose vendored directory is missing', () => {
     const repo = setup();
-    rmSync(join(repo, 'llmwiki', 'deps', 'a'), { recursive: true, force: true });
+    rmSync(join(repo, 'wiki', 'deps', 'a'), { recursive: true, force: true });
     const issues = vendoredLock(contextFor(repo));
     expect(issues.some((i) => i.severity === 'error' && i.file.includes('a'))).toBe(true);
   });
@@ -80,17 +80,17 @@ describe('check: vendored-lock', () => {
   it('flags a config dependency that has no lock entry', () => {
     const repo = setup();
     writeProducer(join(repo, 'node_modules', 'b'), { name: 'b', version: '1.0.0' });
-    writeFileSync(join(repo, 'llmwiki.yaml'), 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  a: npm\n  b: npm\n');
+    writeFileSync(join(repo, 'wiki-sticky.yaml'), 'version: 1\nbundle:\n  root: wiki\ndeps:\n  a: npm\n  b: npm\n');
     const issues = vendoredLock(contextFor(repo));
     expect(issues.some((i) => i.severity === 'error' && i.message.includes('"b"'))).toBe(true);
   });
 
   it('flags a declared dep with no lock file at all (fresh init, never installed)', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n',
     });
-    // No node_modules, no install ever run: no llmwiki-lock.json exists.
+    // No node_modules, no install ever run: no wiki-sticky-lock.json exists.
     const issues = vendoredLock(contextFor(repo));
     expect(issues.some((i) => i.severity === 'error' && i.message.includes('"a"') && /not locked/.test(i.message))).toBe(
       true,
@@ -99,14 +99,14 @@ describe('check: vendored-lock', () => {
 
   it('still flags vendored bundles with no lock file at all (no declared deps)', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': configYaml(),
-      'llmwiki/index.md': '# Root\n',
-      'llmwiki/deps/extra/index.md': '# Extra\n',
+      'wiki-sticky.yaml': configYaml(),
+      'wiki/index.md': '# Root\n',
+      'wiki/deps/extra/index.md': '# Extra\n',
     });
     const issues = vendoredLock(contextFor(repo));
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('error');
-    expect(issues[0].file).toBe('llmwiki/deps');
-    expect(issues[0].message).toMatch(/no llmwiki-lock\.json/);
+    expect(issues[0].file).toBe('wiki/deps');
+    expect(issues[0].message).toMatch(/no wiki-sticky-lock\.json/);
   });
 });

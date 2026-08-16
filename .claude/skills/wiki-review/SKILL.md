@@ -1,6 +1,6 @@
 ---
 name: wiki-review
-description: Use for an adversarial second look at wiki pages — after a migration ingest, to check a new or edited page against pages it might conflict with, or to judge whether existing pages still meet the bundle's writing conventions. Never for mechanical link or format problems (that's `llmwiki lint`), and never to edit pages directly — this produces a report only.
+description: Use for an adversarial second look at wiki pages — after a migration ingest, to check a new or edited page against pages it might conflict with, or to judge whether existing pages still meet the bundle's writing conventions. Never for mechanical link or format problems (that's `wiki-sticky lint`), and never to edit pages directly — this produces a report only.
 ---
 
 # wiki-review
@@ -13,8 +13,8 @@ worse than a short one.
 
 ## 0. Find the bundle root
 
-Read `bundle.root` from `llmwiki.yaml` at the repository root; it defaults to
-`llmwiki` if the key is absent. Call this `<bundle-root>` below.
+Read `bundle.root` from `wiki-sticky.yaml` at the repository root; it defaults to
+`wiki` if the key is absent. Call this `<bundle-root>` below.
 
 ## Scope
 
@@ -70,7 +70,7 @@ exactly the kind of content this skill exists to check.
 
 Mechanical checks — broken links, non-reference-style links, relative or
 GitHub-URL links, missing required frontmatter, filenames not in
-`kebab-case.md`, orphan pages, missing `index.md` — belong to `llmwiki lint`,
+`kebab-case.md`, orphan pages, missing `index.md` — belong to `wiki-sticky lint`,
 not to this skill. Don't reproduce lint's job in a review report; if a
-mechanical problem is spotted in passing, just say "also run `llmwiki lint`"
+mechanical problem is spotted in passing, just say "also run `wiki-sticky lint`"
 rather than listing it as a review finding.

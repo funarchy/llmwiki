@@ -11,8 +11,8 @@ import { contextFor } from '../helpers/lint.js';
 describe('check: generated-indexes', () => {
   it('passes when deps/index.md matches what install would produce', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n\n* [Dependencies](/llmwiki/deps/index.md) - vendored knowledge\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n\n* [Dependencies](/wiki/deps/index.md) - vendored knowledge\n',
     });
     writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     syncDeps(repo, loadConfig(repo), { frozen: false });
@@ -22,28 +22,28 @@ describe('check: generated-indexes', () => {
 
   it('flags a hand-edited deps/index.md', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n\n* [Dependencies](/llmwiki/deps/index.md) - vendored knowledge\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n\n* [Dependencies](/wiki/deps/index.md) - vendored knowledge\n',
     });
     writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     syncDeps(repo, loadConfig(repo), { frozen: false });
 
-    writeFileSync(join(repo, 'llmwiki', 'deps', 'index.md'), '# Hand-edited\n');
+    writeFileSync(join(repo, 'wiki', 'deps', 'index.md'), '# Hand-edited\n');
     const issues = generatedIndexes(contextFor(repo));
     expect(issues).toHaveLength(1);
     expect(issues[0].severity).toBe('error');
-    expect(issues[0].file).toBe('llmwiki/deps/index.md');
+    expect(issues[0].file).toBe('wiki/deps/index.md');
   });
 
   it('flags a stale index after the lock changed without regenerating it', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n\n* [Dependencies](/llmwiki/deps/index.md) - vendored knowledge\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n\n* [Dependencies](/wiki/deps/index.md) - vendored knowledge\n',
     });
     writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     syncDeps(repo, loadConfig(repo), { frozen: false });
 
-    const staleIndex = join(repo, 'llmwiki', 'deps', 'index.md');
+    const staleIndex = join(repo, 'wiki', 'deps', 'index.md');
     const before = readFileSync(staleIndex, 'utf-8');
     writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '2.0.0' });
     // Re-sync updates the lock but restore the pre-sync index to simulate staleness.
@@ -57,20 +57,20 @@ describe('check: generated-indexes', () => {
 
   it('flags a stale vendor/index.md while a user-authored dir exists, and stays silent when there is no vendor dir', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nvendor:\n  rn:\n    from: https://example.com/rn\n',
-      'llmwiki/index.md': '# Root\n',
-      'llmwiki/vendor/rn/index.md': '# RN\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nvendor:\n  rn:\n    from: https://example.com/rn\n',
+      'wiki/index.md': '# Root\n',
+      'wiki/vendor/rn/index.md': '# RN\n',
     });
     // No vendor dir at all: no findings.
     const bare = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\n',
+      'wiki/index.md': '# Root\n',
     });
     expect(generatedIndexes(contextFor(bare))).toEqual([]);
 
     // Vendor dir present but vendor/index.md missing/stale: flagged.
     const issues = generatedIndexes(contextFor(repo));
     expect(issues).toHaveLength(1);
-    expect(issues[0].file).toBe('llmwiki/vendor/index.md');
+    expect(issues[0].file).toBe('wiki/vendor/index.md');
   });
 });

@@ -14,41 +14,41 @@ import { contextFor } from '../helpers/lint.js';
 describe('mode: link', () => {
   it('symlinks the producer root instead of copying, leaving content unrewritten', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nmode: link\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n',
     });
     writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     syncDeps(repo, loadConfig(repo), { frozen: false });
 
-    const dest = join(repo, 'llmwiki', 'deps', 'a');
+    const dest = join(repo, 'wiki', 'deps', 'a');
     expect(lstatSync(dest).isSymbolicLink()).toBe(true);
 
     const pageContent = readFileSync(join(dest, 'topic.md'), 'utf-8');
-    const producerContent = readFileSync(join(repo, 'node_modules', 'a', 'llmwiki', 'topic.md'), 'utf-8');
+    const producerContent = readFileSync(join(repo, 'node_modules', 'a', 'wiki', 'topic.md'), 'utf-8');
     expect(pageContent).toBe(producerContent);
 
     // The producer's own absolute links stay untouched — link mode cannot rewrite.
     const indexContent = readFileSync(join(dest, 'index.md'), 'utf-8');
-    expect(indexContent).toContain('/llmwiki/topic.md');
-    expect(indexContent).not.toContain('/llmwiki/deps/a/topic.md');
+    expect(indexContent).toContain('/wiki/topic.md');
+    expect(indexContent).not.toContain('/wiki/deps/a/topic.md');
   });
 
   it('supports a scoped name, creating the parent scope directory first', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  "@scope/name": npm\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nmode: link\ndeps:\n  "@scope/name": npm\n',
+      'wiki/index.md': '# Root\n',
     });
     writeProducer(join(repo, 'node_modules', '@scope', 'name'), { name: '@scope/name', version: '1.0.0' });
     syncDeps(repo, loadConfig(repo), { frozen: false });
 
-    const dest = join(repo, 'llmwiki', 'deps', '@scope', 'name');
+    const dest = join(repo, 'wiki', 'deps', '@scope', 'name');
     expect(lstatSync(dest).isSymbolicLink()).toBe(true);
   });
 
   it('rejects a resolved bundle that declares its own dependencies', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nmode: link\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n',
     });
     writeProducer(join(repo, 'node_modules', 'a'), {
       name: 'a',
@@ -64,61 +64,61 @@ describe('mode: link', () => {
 
   it('still writes a lock with the real content hash', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nmode: link\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n',
     });
     writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     syncDeps(repo, loadConfig(repo), { frozen: false });
 
     const lock = readLock(repo)!;
-    expect(lock.bundles.a.upstreamHash).toBe(hashBundle(join(repo, 'node_modules', 'a', 'llmwiki')));
+    expect(lock.bundles.a.upstreamHash).toBe(hashBundle(join(repo, 'node_modules', 'a', 'wiki')));
   });
 
   it('clearDeps removes the symlink without deleting the producer tree through it', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nmode: link\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n',
     });
     writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     syncDeps(repo, loadConfig(repo), { frozen: false });
 
-    const producerFile = join(repo, 'node_modules', 'a', 'llmwiki', 'topic.md');
+    const producerFile = join(repo, 'node_modules', 'a', 'wiki', 'topic.md');
     expect(existsSync(producerFile)).toBe(true);
 
-    clearDeps(repo, 'llmwiki');
+    clearDeps(repo, 'wiki');
 
-    expect(existsSync(join(repo, 'llmwiki', 'deps', 'a'))).toBe(false);
+    expect(existsSync(join(repo, 'wiki', 'deps', 'a'))).toBe(false);
     expect(existsSync(producerFile)).toBe(true);
   });
 
   it('rejects a producer whose bundle root differs from the consumer, since link mode cannot retarget links', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nmode: link\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n',
     });
-    writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0', root: 'wiki' });
+    writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0', root: 'knowledge' });
 
     expect(() => syncDeps(repo, loadConfig(repo), { frozen: false })).toThrow(
-      /mode: link cannot retarget links.*"a".*"wiki".*"llmwiki".*use mode: copy/,
+      /mode: link cannot retarget links.*"a".*"knowledge".*"wiki".*use mode: copy/,
     );
   });
 
   it('links fine when the producer and consumer bundle roots match', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nmode: link\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n',
     });
-    writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0', root: 'llmwiki' });
+    writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0', root: 'wiki' });
 
     syncDeps(repo, loadConfig(repo), { frozen: false });
 
-    expect(lstatSync(join(repo, 'llmwiki', 'deps', 'a')).isSymbolicLink()).toBe(true);
+    expect(lstatSync(join(repo, 'wiki', 'deps', 'a')).isSymbolicLink()).toBe(true);
   });
 
   it('passes check 9 on a linked tree', () => {
     const repo = makeRepo({
-      'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\nmode: link\ndeps:\n  a: npm\n',
-      'llmwiki/index.md': '# Root\n',
+      'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\nmode: link\ndeps:\n  a: npm\n',
+      'wiki/index.md': '# Root\n',
     });
     writeProducer(join(repo, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     syncDeps(repo, loadConfig(repo), { frozen: false });

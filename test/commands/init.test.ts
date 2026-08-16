@@ -10,17 +10,17 @@ import { makeRepo } from '../helpers/fixture.js';
 describe('runInit', () => {
   it('scaffolds the bundle, config and eval index', () => {
     const root = makeRepo({});
-    runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Demo' });
+    runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: false, title: 'Demo' });
 
-    expect(existsSync(join(root, 'llmwiki.yaml'))).toBe(true);
-    expect(existsSync(join(root, 'llmwiki', 'index.md'))).toBe(true);
-    expect(existsSync(join(root, 'llmwiki', '_meta', 'page.schema.json'))).toBe(true);
-    expect(existsSync(join(root, 'llmwiki', '_meta', 'eval', 'index.md'))).toBe(true);
+    expect(existsSync(join(root, 'wiki-sticky.yaml'))).toBe(true);
+    expect(existsSync(join(root, 'wiki', 'index.md'))).toBe(true);
+    expect(existsSync(join(root, 'wiki', '_meta', 'page.schema.json'))).toBe(true);
+    expect(existsSync(join(root, 'wiki', '_meta', 'eval', 'index.md'))).toBe(true);
   });
 
   it('installs the shipped skills into both working trees and locks their hashes', () => {
     const root = makeRepo({});
-    const result = runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Demo' });
+    const result = runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: false, title: 'Demo' });
 
     const names = shippedSkills();
     expect([...result.skillsInstalled].sort()).toEqual([...names].sort());
@@ -37,8 +37,8 @@ describe('runInit', () => {
 
   it('substitutes the bundle title into the root index', () => {
     const root = makeRepo({});
-    runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Scenepad' });
-    const index = readFileSync(join(root, 'llmwiki', 'index.md'), 'utf-8');
+    runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: false, title: 'Scenepad' });
+    const index = readFileSync(join(root, 'wiki', 'index.md'), 'utf-8');
     expect(index).toContain('# Scenepad');
     expect(index).not.toContain('{{BUNDLE_TITLE}}');
   });
@@ -54,7 +54,7 @@ describe('runInit', () => {
 
   it('produces a bundle that passes lint', async () => {
     const root = makeRepo({});
-    runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Demo' });
+    runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: false, title: 'Demo' });
     const { runLint } = await import('../../src/lint/run.js');
     await import('../../src/lint/checks/index.js');
     const { loadBundle } = await import('../../src/bundle/load.js');
@@ -70,32 +70,32 @@ describe('runInit', () => {
 
   it('adds the bundle root, config and lint script to package.json', () => {
     const root = makeRepo({ 'package.json': JSON.stringify({ name: 'demo', version: '1.0.0' }, null, 2) });
-    runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Demo' });
+    runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: false, title: 'Demo' });
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
-    expect(pkg.files).toEqual(expect.arrayContaining(['llmwiki', 'llmwiki.yaml']));
-    expect(pkg.scripts['llmwiki:lint']).toBe('llmwiki lint');
+    expect(pkg.files).toEqual(expect.arrayContaining(['wiki', 'wiki-sticky.yaml']));
+    expect(pkg.scripts['wiki-sticky:lint']).toBe('wiki-sticky lint');
   });
 
   it('does not duplicate existing package.json files entries', () => {
     const root = makeRepo({
-      'package.json': JSON.stringify({ name: 'demo', files: ['llmwiki', 'dist'] }, null, 2),
+      'package.json': JSON.stringify({ name: 'demo', files: ['wiki', 'dist'] }, null, 2),
     });
-    runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Demo' });
+    runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: false, title: 'Demo' });
     const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
-    expect(pkg.files.filter((f: string) => f === 'llmwiki')).toHaveLength(1);
+    expect(pkg.files.filter((f: string) => f === 'wiki')).toHaveLength(1);
   });
 
   it('succeeds in a repository with no package.json', () => {
     const root = makeRepo({});
     expect(() =>
-      runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Demo' }),
+      runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: false, title: 'Demo' }),
     ).not.toThrow();
   });
 
   it('refuses to overwrite an existing config', () => {
-    const root = makeRepo({ 'llmwiki.yaml': 'version: 1\nbundle:\n  root: llmwiki\n' });
+    const root = makeRepo({ 'wiki-sticky.yaml': 'version: 1\nbundle:\n  root: wiki\n' });
     expect(() =>
-      runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Demo' }),
+      runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: false, title: 'Demo' }),
     ).toThrow(/already/);
   });
 
@@ -108,24 +108,24 @@ describe('runInit', () => {
 
   it('installs a pre-commit hook when asked and .git/hooks exists', () => {
     const root = makeRepo({ '.git/hooks/.keep': '' });
-    runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: true, title: 'Demo' });
+    runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: true, title: 'Demo' });
     const hook = join(root, '.git', 'hooks', 'pre-commit');
     expect(existsSync(hook)).toBe(true);
     const hookContent = readFileSync(hook, 'utf-8');
-    expect(hookContent).toContain('node_modules/.bin/llmwiki');
+    expect(hookContent).toContain('node_modules/.bin/wiki-sticky');
     expect(hookContent).toContain('lint');
   });
 
   it('reports an existing docs/ directory without touching it', () => {
     const root = makeRepo({ 'docs/guide.md': '# Guide\n' });
-    const result = runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: false, title: 'Demo' });
+    const result = runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: false, title: 'Demo' });
     expect(result.foundDocsDir).toBe(true);
     expect(readFileSync(join(root, 'docs', 'guide.md'), 'utf-8')).toBe('# Guide\n');
   });
 
   it('does not overwrite an existing pre-commit hook', () => {
     const root = makeRepo({ '.git/hooks/pre-commit': '#!/bin/sh\necho mine\n' });
-    const result = runInit({ repoRoot: root, bundleRoot: 'llmwiki', installHook: true, title: 'Demo' });
+    const result = runInit({ repoRoot: root, bundleRoot: 'wiki', installHook: true, title: 'Demo' });
     expect(readFileSync(join(root, '.git', 'hooks', 'pre-commit'), 'utf-8')).toContain('echo mine');
     expect(result.hookSkipped).toBe(true);
   });
@@ -143,6 +143,6 @@ describe('runInit', () => {
     expect(() =>
       runInit({ repoRoot: root, bundleRoot: 'my: bundle', installHook: false, title: 'Demo' }),
     ).toThrow();
-    expect(existsSync(join(root, 'llmwiki.yaml'))).toBe(false);
+    expect(existsSync(join(root, 'wiki-sticky.yaml'))).toBe(false);
   });
 });

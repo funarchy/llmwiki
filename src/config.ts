@@ -4,11 +4,11 @@ import { parse } from 'yaml';
 import { compileSchema, formatErrors } from './schema.js';
 import type { Config, DepSpec } from './types.js';
 
-export const CONFIG_FILENAME = 'llmwiki.yaml';
-export const DEFAULT_ROOT = 'llmwiki';
+export const CONFIG_FILENAME = 'wiki-sticky.yaml';
+export const DEFAULT_ROOT = 'wiki';
 
 /**
- * Walk up from `startDir` to the directory containing llmwiki.yaml.
+ * Walk up from `startDir` to the directory containing wiki-sticky.yaml.
  *
  * The walk is unbounded, matching how `package.json` resolution behaves. A stray
  * config above the working directory is therefore picked up silently — acceptable,
@@ -49,15 +49,15 @@ export function validateBundleRoot(root: string, repoRoot: string): void {
   }
 }
 
-/** Load, validate and normalize llmwiki.yaml from a repo root. */
+/** Load, validate and normalize wiki-sticky.yaml from a repo root. */
 export function loadConfig(repoRoot: string): Config {
   const path = join(repoRoot, CONFIG_FILENAME);
   if (!existsSync(path)) {
-    throw new Error(`No ${CONFIG_FILENAME} found at ${repoRoot} — run \`llmwiki init\` first.`);
+    throw new Error(`No ${CONFIG_FILENAME} found at ${repoRoot} — run \`wiki-sticky init\` first.`);
   }
 
   const raw = parse(readFileSync(path, 'utf-8')) as unknown;
-  const validate = compileSchema('llmwiki.schema.json');
+  const validate = compileSchema('wiki-sticky.schema.json');
   if (!validate(raw)) {
     throw new Error(`Invalid ${CONFIG_FILENAME}: ${formatErrors(validate.errors)}`);
   }

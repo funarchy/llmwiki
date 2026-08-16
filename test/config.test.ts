@@ -5,21 +5,21 @@ import { join } from 'node:path';
 import { findRepoRoot, loadConfig, CONFIG_FILENAME, DEFAULT_ROOT } from '../src/config.js';
 
 function tempRepo(configYaml?: string): string {
-  const dir = mkdtempSync(join(tmpdir(), 'llmwiki-cfg-'));
+  const dir = mkdtempSync(join(tmpdir(), 'wiki-sticky-cfg-'));
   if (configYaml !== undefined) writeFileSync(join(dir, CONFIG_FILENAME), configYaml);
   return dir;
 }
 
 describe('findRepoRoot', () => {
-  it('finds the directory holding llmwiki.yaml from a nested path', () => {
-    const root = tempRepo('version: 1\nbundle:\n  root: llmwiki\n');
+  it('finds the directory holding wiki-sticky.yaml from a nested path', () => {
+    const root = tempRepo('version: 1\nbundle:\n  root: wiki\n');
     const nested = join(root, 'a', 'b');
     mkdirSync(nested, { recursive: true });
     expect(findRepoRoot(nested)).toBe(root);
   });
 
   it('returns null when no config exists above the start directory', () => {
-    const dir = mkdtempSync(join(tmpdir(), 'llmwiki-none-'));
+    const dir = mkdtempSync(join(tmpdir(), 'wiki-sticky-none-'));
     expect(findRepoRoot(dir)).toBeNull();
   });
 });
@@ -38,7 +38,7 @@ describe('loadConfig', () => {
 
   it('normalizes the npm shorthand into a DepSpec', () => {
     const root = tempRepo(
-      ['version: 1', 'bundle:', '  root: llmwiki', 'deps:', "  '@funarchy/scenepad': npm"].join('\n'),
+      ['version: 1', 'bundle:', '  root: wiki', 'deps:', "  '@funarchy/scenepad': npm"].join('\n'),
     );
     const config = loadConfig(root);
     expect(config.deps['@funarchy/scenepad']).toEqual({ source: 'npm' });
@@ -49,7 +49,7 @@ describe('loadConfig', () => {
       [
         'version: 1',
         'bundle:',
-        '  root: llmwiki',
+        '  root: wiki',
         'deps:',
         "  '@funarchy/koota-pms':",
         '    source: path',
@@ -61,7 +61,7 @@ describe('loadConfig', () => {
   });
 
   it('rejects an unknown top-level key', () => {
-    const root = tempRepo('version: 1\nbundle:\n  root: llmwiki\nnonsense: true\n');
+    const root = tempRepo('version: 1\nbundle:\n  root: wiki\nnonsense: true\n');
     expect(() => loadConfig(root)).toThrow(/nonsense/);
   });
 
@@ -71,7 +71,7 @@ describe('loadConfig', () => {
   });
 
   it('rejects an unsupported version', () => {
-    const root = tempRepo('version: 2\nbundle:\n  root: llmwiki\n');
+    const root = tempRepo('version: 2\nbundle:\n  root: wiki\n');
     expect(() => loadConfig(root)).toThrow(/version/);
   });
 

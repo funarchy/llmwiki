@@ -8,7 +8,7 @@ import { packageRoot } from '../../src/paths.js';
 import { makeRepo } from '../helpers/fixture.js';
 
 function skillsConfig(mode: 'managed' | 'vendored' | 'off' = 'managed'): Record<string, string> {
-  return { 'llmwiki.yaml': `version: 1\nbundle:\n  root: llmwiki\nskills: ${mode}\n` };
+  return { 'wiki-sticky.yaml': `version: 1\nbundle:\n  root: wiki\nskills: ${mode}\n` };
 }
 
 describe('syncSkills', () => {
@@ -82,7 +82,7 @@ describe('syncSkills', () => {
     expect(result.skipped).toEqual([]);
     expect(existsSync(join(repo, '.claude', 'skills'))).toBe(false);
     expect(existsSync(join(repo, '.agents', 'skills'))).toBe(false);
-    expect(existsSync(join(repo, 'llmwiki-lock.json'))).toBe(false);
+    expect(existsSync(join(repo, 'wiki-sticky-lock.json'))).toBe(false);
   });
 
   it('preserves Lock.bundles across a skills write (read-modify-write)', () => {

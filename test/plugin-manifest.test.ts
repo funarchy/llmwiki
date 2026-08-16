@@ -13,7 +13,7 @@ describe('plugin manifests', () => {
     const plugin = readJson('.claude-plugin/plugin.json') as { name: string; description: string; version: string };
     const pkg = readJson('package.json') as { version: string };
 
-    expect(plugin.name).toBe('llmwiki');
+    expect(plugin.name).toBe('wiki-sticky');
     expect(plugin.version).toBe(pkg.version);
     expect(plugin.description.length).toBeGreaterThan(0);
   });
@@ -25,10 +25,10 @@ describe('plugin manifests', () => {
       plugins: Array<{ name: string; source: string; description: string }>;
     };
 
-    expect(marketplace.name).toBe('llmwiki');
+    expect(marketplace.name).toBe('wiki-sticky');
     expect(marketplace.owner.name).toBe('funarchy');
     expect(marketplace.plugins).toHaveLength(1);
-    expect(marketplace.plugins[0].name).toBe('llmwiki');
+    expect(marketplace.plugins[0].name).toBe('wiki-sticky');
     expect(marketplace.plugins[0].source).toBe('.');
     expect(marketplace.plugins[0].description.length).toBeGreaterThan(0);
   });

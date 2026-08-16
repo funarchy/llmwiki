@@ -7,7 +7,7 @@ import type { Issue } from '../../types.js';
  * Check 12 — flags an installed skill whose lock entry has drifted from the
  * hash of the file this package currently ships. Always warning severity
  * (spec §11, §13): a stale skill must never fail CI, only nudge
- * `llmwiki skills sync`.
+ * `wiki-sticky skills sync`.
  *
  * `config.skills: 'off'` means the plugin install path is in use instead —
  * nothing here is this project's to compare, so the check is silent.
@@ -31,7 +31,7 @@ export const skillsCurrent: Check = (ctx) => {
         file: LOCK_FILENAME,
         check: 'skills-current',
         severity: 'warning',
-        message: `skill "${name}" is out of date — run \`llmwiki skills sync\``,
+        message: `skill "${name}" is out of date — run \`wiki-sticky skills sync\``,
       });
     }
   }

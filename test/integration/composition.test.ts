@@ -19,32 +19,32 @@ function run(args: string[], cwd: string): { stdout: string; status: number } {
   }
 }
 
-const DEPS_LINK = '\n* [Dependencies](/llmwiki/deps/index.md) - vendored knowledge\n';
+const DEPS_LINK = '\n* [Dependencies](/wiki/deps/index.md) - vendored knowledge\n';
 
 /** Mirror what a user does on the `install`/`add` printed hint: wire the root index to deps/. */
 function addDepsLink(cwd: string): void {
-  const path = join(cwd, 'llmwiki', 'index.md');
+  const path = join(cwd, 'wiki', 'index.md');
   writeFileSync(path, readFileSync(path, 'utf-8') + DEPS_LINK);
 }
 
 function removeDepsLink(cwd: string): void {
-  const path = join(cwd, 'llmwiki', 'index.md');
+  const path = join(cwd, 'wiki', 'index.md');
   writeFileSync(path, readFileSync(path, 'utf-8').replace(DEPS_LINK, ''));
 }
 
-describe('llmwiki composition (CLI end to end)', () => {
+describe('wiki-sticky composition (CLI end to end)', () => {
   beforeAll(() => {
     execFileSync('npm', ['run', 'build'], { cwd: packageRoot(), stdio: 'ignore' });
   });
 
   it('init, add, amend the root index, then lint is clean', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-comp-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-comp-'));
     expect(run(['init', '--yes'], cwd).status).toBe(0);
 
     writeProducer(join(cwd, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     const add = run(['add', 'a'], cwd);
     expect(add.status).toBe(0);
-    expect(existsSync(join(cwd, 'llmwiki', 'deps', 'a', 'index.md'))).toBe(true);
+    expect(existsSync(join(cwd, 'wiki', 'deps', 'a', 'index.md'))).toBe(true);
 
     addDepsLink(cwd);
 
@@ -54,20 +54,20 @@ describe('llmwiki composition (CLI end to end)', () => {
   });
 
   it('a hand-edited vendored page fails lint naming the file, and install heals it', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-comp-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-comp-'));
     run(['init', '--yes'], cwd);
     writeProducer(join(cwd, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     run(['add', 'a'], cwd);
     addDepsLink(cwd);
     expect(run(['lint'], cwd).status).toBe(0);
 
-    const pagePath = join(cwd, 'llmwiki', 'deps', 'a', 'topic.md');
+    const pagePath = join(cwd, 'wiki', 'deps', 'a', 'topic.md');
     writeFileSync(pagePath, 'HAND-EDITED CONTENT\n');
 
     const broken = run(['lint'], cwd);
     expect(broken.status).toBe(1);
     expect(broken.stdout).toMatch(/vendored-lock/);
-    expect(broken.stdout).toContain('llmwiki/deps/a/topic.md');
+    expect(broken.stdout).toContain('wiki/deps/a/topic.md');
 
     const install = run(['install'], cwd);
     expect(install.status).toBe(0);
@@ -77,28 +77,28 @@ describe('llmwiki composition (CLI end to end)', () => {
   });
 
   it('install --frozen succeeds on a fresh-checkout simulation and regenerates the tree, then fails after producer drift', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-comp-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-comp-'));
     run(['init', '--yes'], cwd);
     writeProducer(join(cwd, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     expect(run(['add', 'a'], cwd).status).toBe(0);
 
     // Simulate a fresh checkout: the generated tree is gitignored-worthy but the
-    // lock is committed. Delete deps/, keep llmwiki-lock.json.
-    rmSync(join(cwd, 'llmwiki', 'deps'), { recursive: true, force: true });
-    expect(existsSync(join(cwd, 'llmwiki', 'deps'))).toBe(false);
+    // lock is committed. Delete deps/, keep wiki-sticky-lock.json.
+    rmSync(join(cwd, 'wiki', 'deps'), { recursive: true, force: true });
+    expect(existsSync(join(cwd, 'wiki', 'deps'))).toBe(false);
 
     const frozenClean = run(['install', '--frozen'], cwd);
     expect(frozenClean.status).toBe(0);
-    expect(existsSync(join(cwd, 'llmwiki', 'deps', 'a', 'index.md'))).toBe(true);
+    expect(existsSync(join(cwd, 'wiki', 'deps', 'a', 'index.md'))).toBe(true);
 
     // Now the producer's content itself changes after the lock was written.
-    writeFileSync(join(cwd, 'node_modules', 'a', 'llmwiki', 'topic.md'), '# Topic\n\nChanged upstream.\n');
+    writeFileSync(join(cwd, 'node_modules', 'a', 'wiki', 'topic.md'), '# Topic\n\nChanged upstream.\n');
     const frozenStale = run(['install', '--frozen'], cwd);
     expect(frozenStale.status).toBe(1);
   });
 
   it('a transitive dependency hoists flat and its cross-bundle links resolve, lint clean overall', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-comp-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-comp-'));
     run(['init', '--yes'], cwd);
 
     writeProducer(join(cwd, 'node_modules', 'a'), {
@@ -106,8 +106,8 @@ describe('llmwiki composition (CLI end to end)', () => {
       version: '1.0.0',
       configExtra: 'deps:\n  b: npm\n',
       files: {
-        'index.md': '# a\n\n* [Topic](/llmwiki/topic.md) - the one topic\n',
-        'topic.md': page('Topic', 'See [B Topic][b-topic].\n\n[b-topic]: /llmwiki/deps/b/topic.md\n'),
+        'index.md': '# a\n\n* [Topic](/wiki/topic.md) - the one topic\n',
+        'topic.md': page('Topic', 'See [B Topic][b-topic].\n\n[b-topic]: /wiki/deps/b/topic.md\n'),
       },
     });
     writeProducer(join(cwd, 'node_modules', 'a', 'node_modules', 'b'), { name: 'b', version: '1.0.0' });
@@ -116,12 +116,12 @@ describe('llmwiki composition (CLI end to end)', () => {
     expect(add.status).toBe(0);
 
     // Transitive "b" hoisted flat, as a sibling of "a" under deps/, not nested under a/.
-    expect(existsSync(join(cwd, 'llmwiki', 'deps', 'a', 'index.md'))).toBe(true);
-    expect(existsSync(join(cwd, 'llmwiki', 'deps', 'b', 'index.md'))).toBe(true);
-    expect(existsSync(join(cwd, 'llmwiki', 'deps', 'a', 'deps'))).toBe(false);
+    expect(existsSync(join(cwd, 'wiki', 'deps', 'a', 'index.md'))).toBe(true);
+    expect(existsSync(join(cwd, 'wiki', 'deps', 'b', 'index.md'))).toBe(true);
+    expect(existsSync(join(cwd, 'wiki', 'deps', 'a', 'deps'))).toBe(false);
 
-    const aTopic = readFileSync(join(cwd, 'llmwiki', 'deps', 'a', 'topic.md'), 'utf-8');
-    expect(aTopic).toContain('/llmwiki/deps/b/topic.md');
+    const aTopic = readFileSync(join(cwd, 'wiki', 'deps', 'a', 'topic.md'), 'utf-8');
+    expect(aTopic).toContain('/wiki/deps/b/topic.md');
 
     addDepsLink(cwd);
     const lint = run(['lint'], cwd);
@@ -130,9 +130,9 @@ describe('llmwiki composition (CLI end to end)', () => {
   });
 
   it('install exits 1 naming both requirers on a genuine version conflict', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-comp-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-comp-'));
     run(['init', '--yes'], cwd);
-    writeFileSync(join(cwd, 'llmwiki.yaml'), 'version: 1\nbundle:\n  root: llmwiki\ndeps:\n  c1: npm\n  c2: npm\n');
+    writeFileSync(join(cwd, 'wiki-sticky.yaml'), 'version: 1\nbundle:\n  root: wiki\ndeps:\n  c1: npm\n  c2: npm\n');
 
     writeProducer(join(cwd, 'node_modules', 'c1'), {
       name: 'c1',
@@ -155,7 +155,7 @@ describe('llmwiki composition (CLI end to end)', () => {
   });
 
   it('rm removes the vendored tree; lint is clean once the root-index link is removed too', () => {
-    const cwd = mkdtempSync(join(tmpdir(), 'llmwiki-comp-'));
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-comp-'));
     run(['init', '--yes'], cwd);
     writeProducer(join(cwd, 'node_modules', 'a'), { name: 'a', version: '1.0.0' });
     run(['add', 'a'], cwd);
@@ -164,7 +164,7 @@ describe('llmwiki composition (CLI end to end)', () => {
 
     const rm = run(['rm', 'a'], cwd);
     expect(rm.status).toBe(0);
-    expect(existsSync(join(cwd, 'llmwiki', 'deps'))).toBe(false);
+    expect(existsSync(join(cwd, 'wiki', 'deps'))).toBe(false);
 
     // The root index still links to deps/index.md, which no longer exists — the
     // user (here, the test) is responsible for removing that link too.

@@ -86,7 +86,7 @@ export function formatGaps(gaps: Gaps): string {
 export function gapsCommand(cwd: string): number {
   const repoRoot = findRepoRoot(cwd);
   if (!repoRoot) {
-    throw new Error('No llmwiki.yaml found in this directory or any parent — run `llmwiki init` first.');
+    throw new Error('No wiki-sticky.yaml found in this directory or any parent — run `wiki-sticky init` first.');
   }
   const config = loadConfig(repoRoot);
   console.log(formatGaps(collectGaps(repoRoot, config.bundle.root)));

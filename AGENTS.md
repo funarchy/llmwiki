@@ -19,13 +19,13 @@ hook runs lint locally.
 
 - The five agent skills under `skills/wiki-*/SKILL.md` are the
   canonical copies; `.claude/skills/` and `.agents/skills/` are
-  installed copies, synced by `llmwiki skills sync` and hash-locked in
-  `llmwiki-lock.json`. Edit the canonical copy, then sync.
+  installed copies, synced by `wiki-sticky skills sync` and hash-locked in
+  `wiki-sticky-lock.json`. Edit the canonical copy, then sync.
 
 ## Knowledge
 
-This repository's knowledge lives in its llmwiki bundle at
-[/llmwiki/](llmwiki/index.md), not in this file. Start at
-`llmwiki/index.md` and navigate by links — the wiki-search skill is the
+This repository's knowledge lives in its wiki-sticky bundle at
+[/wiki/](wiki/index.md), not in this file. Start at
+`wiki/index.md` and navigate by links — the wiki-search skill is the
 read path. Do not copy knowledge into this file; add or update a bundle
 page instead (wiki-ingest is the write path).

@@ -8,7 +8,7 @@ import type { Config, Lock } from '../../src/types.js';
 function config(overrides: Partial<Config> = {}): Config {
   return {
     version: 1,
-    bundle: { root: 'llmwiki' },
+    bundle: { root: 'wiki' },
     deps: {},
     vendor: {},
     skills: 'managed',
@@ -24,37 +24,37 @@ function lock(bundles: Lock['bundles']): Lock {
 describe('depsIndexContent', () => {
   it('lists bundles sorted by name with version and source', () => {
     const content = depsIndexContent(
-      'llmwiki',
+      'wiki',
       lock({
         z: { source: 'npm', version: '2.0.0', resolvedFrom: 'node_modules/z', upstreamHash: 'sha256-z', requiredBy: ['.'] },
         a: { source: 'path', version: '1.0.0', resolvedFrom: '../a', upstreamHash: 'sha256-a', requiredBy: ['.'] },
       }),
     );
-    const aLine = content.split('\n').find((l) => l.includes('](/llmwiki/deps/a/index.md)'));
-    const zLine = content.split('\n').find((l) => l.includes('](/llmwiki/deps/z/index.md)'));
+    const aLine = content.split('\n').find((l) => l.includes('](/wiki/deps/a/index.md)'));
+    const zLine = content.split('\n').find((l) => l.includes('](/wiki/deps/z/index.md)'));
     expect(content.indexOf('a](')).toBeLessThan(content.indexOf('z]('));
-    expect(aLine).toBe('* [a](/llmwiki/deps/a/index.md) - v1.0.0, path');
-    expect(zLine).toBe('* [z](/llmwiki/deps/z/index.md) - v2.0.0, npm');
+    expect(aLine).toBe('* [a](/wiki/deps/a/index.md) - v1.0.0, path');
+    expect(zLine).toBe('* [z](/wiki/deps/z/index.md) - v2.0.0, npm');
   });
 
   it('shows "required by" for a transitive entry', () => {
     const content = depsIndexContent(
-      'llmwiki',
+      'wiki',
       lock({
         b: { source: 'npm', version: '1.0.0', resolvedFrom: 'node_modules/b', upstreamHash: 'sha256-b', requiredBy: ['a'] },
       }),
     );
-    expect(content).toContain('* [b](/llmwiki/deps/b/index.md) - v1.0.0, npm, required by a');
+    expect(content).toContain('* [b](/wiki/deps/b/index.md) - v1.0.0, npm, required by a');
   });
 
   it('omits "required by" for a directly-required entry', () => {
     const content = depsIndexContent(
-      'llmwiki',
+      'wiki',
       lock({
         a: { source: 'npm', version: '1.0.0', resolvedFrom: 'node_modules/a', upstreamHash: 'sha256-a', requiredBy: ['.'] },
       }),
     );
-    expect(content).toContain('* [a](/llmwiki/deps/a/index.md) - v1.0.0, npm\n');
+    expect(content).toContain('* [a](/wiki/deps/a/index.md) - v1.0.0, npm\n');
     expect(content).not.toContain('required by');
   });
 
@@ -63,7 +63,7 @@ describe('depsIndexContent', () => {
     // nonexistent producer path must not throw or attempt any IO.
     expect(() =>
       depsIndexContent(
-        'llmwiki',
+        'wiki',
         lock({
           ghost: {
             source: 'npm',
@@ -80,21 +80,21 @@ describe('depsIndexContent', () => {
 
 describe('vendorIndexContent', () => {
   it('lists vendor dirs with declared provenance and flags undeclared', () => {
-    const content = vendorIndexContent('llmwiki', config({ vendor: { known: { from: 'https://example.com/docs' } } }), [
+    const content = vendorIndexContent('wiki', config({ vendor: { known: { from: 'https://example.com/docs' } } }), [
       'known',
       'mystery',
     ]);
-    expect(content).toContain('* [known](/llmwiki/vendor/known/index.md) - from https://example.com/docs');
-    expect(content).toContain('* [mystery](/llmwiki/vendor/mystery/index.md) - provenance undeclared');
+    expect(content).toContain('* [known](/wiki/vendor/known/index.md) - from https://example.com/docs');
+    expect(content).toContain('* [mystery](/wiki/vendor/mystery/index.md) - provenance undeclared');
   });
 });
 
 describe('generateIndexes', () => {
   it('writes nothing when there are no deps and no vendor dirs', () => {
     const root = makeRepo({});
-    mkdirSync(join(root, 'llmwiki'), { recursive: true });
-    generateIndexes(root, 'llmwiki', config(), lock({}));
-    expect(existsSync(join(root, 'llmwiki', 'deps', 'index.md'))).toBe(false);
-    expect(existsSync(join(root, 'llmwiki', 'vendor', 'index.md'))).toBe(false);
+    mkdirSync(join(root, 'wiki'), { recursive: true });
+    generateIndexes(root, 'wiki', config(), lock({}));
+    expect(existsSync(join(root, 'wiki', 'deps', 'index.md'))).toBe(false);
+    expect(existsSync(join(root, 'wiki', 'vendor', 'index.md'))).toBe(false);
   });
 });
