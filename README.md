@@ -15,21 +15,23 @@ and the agent skillset (five skills, `skills sync`, hash-locking) all ship.
 
 ## Quick start
 
-Not yet on npm — run from a checkout:
-
 ```bash
-npm install && npm run build
-node dist/cli.js init                    # scaffold llmwiki/, llmwiki.yaml and the skillset
-node dist/cli.js lint                    # hold the bundle to the schema
-node dist/cli.js gaps                    # list unresolved eval cases and stub pages
-node dist/cli.js add <pkg>               # resolve, vendor and lock a dependency
-node dist/cli.js rm <pkg>                # remove a dependency and re-sync
-node dist/cli.js install --frozen        # verify the vendored tree matches the lock (CI)
-node dist/cli.js update [pkg]            # re-resolve and report the knowledge diff
-node dist/cli.js skills sync             # reinstall skills from the installed CLI version
+npm install --save-dev @funarchy/llmwiki
+npx llmwiki init          # scaffold llmwiki/, llmwiki.yaml and the skillset
 ```
 
-Once published these become `npx llmwiki init` / `lint` / `gaps` / etc.
+The package is [`@funarchy/llmwiki`](https://www.npmjs.com/package/@funarchy/llmwiki);
+the binary it installs is plain `llmwiki`:
+
+```bash
+npx llmwiki lint          # hold the bundle to the schema
+npx llmwiki gaps          # list unresolved eval cases and stub pages
+npx llmwiki add <pkg>     # resolve, vendor and lock a dependency
+npx llmwiki rm <pkg>      # remove a dependency and re-sync
+npx llmwiki install --frozen   # verify the vendored tree matches the lock (CI)
+npx llmwiki update [pkg]  # re-resolve and report the knowledge diff
+npx llmwiki skills sync   # reinstall skills from the installed CLI version
+```
 
 ## Skills
 
@@ -71,9 +73,12 @@ in this repository's own bundle: start at [llmwiki/index.md](llmwiki/index.md).
 
 ## Development
 
+Working from a checkout (the contributor path — users install from npm):
+
 ```bash
 npm install
 npm test
 npm run typecheck
 npm run build
+node dist/cli.js lint     # the built checkout runs the CLI directly
 ```
