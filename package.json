@@ -1,23 +1,31 @@
 {
-  "name": "llmwiki",
+  "name": "@funarchy/llmwiki",
   "version": "0.1.0",
   "description": "OKF knowledge bundles with dependencies",
-  "directories": {
-    "doc": "docs"
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.test.json",
+    "prepublishOnly": "npm run build && npm run typecheck && npm test && node dist/cli.js lint && node dist/cli.js install --frozen",
     "llmwiki:lint": "llmwiki lint"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/funarchy/llmwiki.git"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "knowledge-base",
+    "okf",
+    "wiki",
+    "agents",
+    "documentation",
+    "markdown"
+  ],
+  "author": "Funarchy contributors",
   "license": "MIT",
   "type": "module",
   "bugs": {
