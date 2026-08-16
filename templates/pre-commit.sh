@@ -10,7 +10,7 @@
 root="$(git rev-parse --show-toplevel)"
 if [ -x "$root/node_modules/.bin/llmwiki" ]; then
   exec "$root/node_modules/.bin/llmwiki" lint
-elif [ -f "$root/dist/cli.js" ] && grep -q '"name": "llmwiki"' "$root/package.json" 2>/dev/null; then
+elif [ -f "$root/dist/cli.js" ] && grep -q '"name": "@funarchy/llmwiki"' "$root/package.json" 2>/dev/null; then
   exec node "$root/dist/cli.js" lint
 else
   echo "pre-commit: llmwiki is not installed in this repository; skipping bundle lint." >&2

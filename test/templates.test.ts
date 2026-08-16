@@ -22,7 +22,7 @@ describe('templates', () => {
     // The dogfood fallback: a built checkout of llmwiki itself...
     expect(content).toContain('dist/cli.js');
     // ...and only llmwiki itself — never a consumer's own dist/cli.js.
-    expect(content).toContain('"name": "llmwiki"');
+    expect(content).toContain('"name": "@funarchy/llmwiki"');
     expect(content).not.toContain('npx');
   });
 });
