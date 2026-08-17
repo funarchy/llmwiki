@@ -1,6 +1,6 @@
 {
   "name": "wiki-sticky",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "OKF knowledge bundles with dependencies",
   "publishConfig": {
     "access": "public"
@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.test.json",
     "prepublishOnly": "npm run build && npm run typecheck && npm test && node dist/cli.js lint && node dist/cli.js install --frozen",
-    "wiki-sticky:lint": "wiki-sticky lint"
+    "wiki-sticky:lint": "wiki-sticky lint",
+    "version": "node scripts/sync-plugin-version.mjs"
   },
   "repository": {
     "type": "git",
