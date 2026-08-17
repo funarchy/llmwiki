@@ -24,11 +24,14 @@ typecheck, tests, `wiki-sticky lint`, `install --frozen` — before
 anything irreversible; bumps the version with `npm version`, whose
 `version` lifecycle hook (`scripts/sync-plugin-version.mjs`) mirrors
 the new number into `.claude-plugin/plugin.json` inside the same
-commit; pushes that commit and its `v<version>` tag to `main`
-together; and publishes to npm via trusted publishing (OIDC) with
-`--provenance`. A red gate stops before the push, so a failed release
-leaves no half-released state — and no npm token exists anywhere,
-in CI or on a laptop.
+commit; lands that commit on `main` through a pull request it opens
+and squash-merges itself — GitHub deliberately offers no ruleset
+bypass for the Actions identity, so the workflow satisfies the
+PR-only rule instead of bypassing it; tags the merged commit
+`v<version>`; and publishes to npm via trusted publishing (OIDC)
+with `--provenance`. A red gate stops before anything is pushed, so
+a failed release leaves no half-released state — and no npm token
+exists anywhere, in CI or on a laptop.
 
 Never release by hand from a checkout: a local `npm version` commit
 cannot be pushed to protected `main`, and a local `npm publish` needs
@@ -36,8 +39,17 @@ an interactive 2FA prompt — both are what this routine exists to
 replace.
 
 One-time operator setup, all in the browser: a `release` environment
-with a required reviewer (repository settings); a ruleset bypass
-letting this workflow push its version commit to `main`; and the
+with a required reviewer (repository settings), and the
 trusted-publisher entry for `wiki-sticky` on npmjs.com (repository
 `funarchy/wiki-sticky`, workflow `release.yml`, environment
-`release`).
+`release`). No ruleset changes are needed.
+
+Known limits, by design: the workflow's own merge works only while
+the `main` ruleset requires a pull request with zero approvals and no
+required status checks — PRs opened with the workflow token never
+trigger CI runs, so a required check would wait forever. If approvals
+or required checks are ever added, the sanctioned path is a dedicated
+GitHub App whose token does the push and which sits on the ruleset
+bypass list. Inside the workflow, `setup-node` must not set
+`registry-url`: it writes an empty `_authToken` line that
+short-circuits the OIDC exchange into ENEEDAUTH.
