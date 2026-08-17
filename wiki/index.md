@@ -15,6 +15,7 @@ else's.
 * [Commands](/wiki/commands/index.md) - init, lint, install, add, rm, update
 * [Composition](/wiki/composition/index.md) - the deps/vendor trust split, link rewriting, version conflicts
 * [Skills](/wiki/skills/index.md) - the five agent-facing skills and when each triggers
+* [Releasing](/wiki/releasing.md) - the gated release routine, approved in the browser, executed in CI
 
 This bundle documents the product from inside its own format; where it
 disagrees with anything else, the code — and this bundle, which cites

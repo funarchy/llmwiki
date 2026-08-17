@@ -1,0 +1,57 @@
+name: release
+
+# Gated release: started by hand against merged main, approved in the
+# browser (the `release` environment requires a reviewer), executed
+# entirely in CI. The full gate runs before anything is pushed; the
+# version commit + tag are pushed only after it is green; the publish
+# uses npm trusted publishing (OIDC) — no token exists anywhere.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: semver bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write # push the version commit and tag
+  id-token: write # OIDC exchange for npm trusted publishing
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs a newer npm than node 20 ships.
+      - run: npm install -g npm@latest
+      # The full gate, before anything irreversible.
+      - run: npm ci
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npx vitest run
+      - run: node dist/cli.js lint
+      - run: node dist/cli.js install --frozen
+      # npm version runs the `version` lifecycle hook, which mirrors the
+      # new version into .claude-plugin/plugin.json inside the same commit.
+      - name: Bump version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version ${{ inputs.bump }}
+      - name: Push release commit and tag
+        run: git push origin HEAD:main --follow-tags
+      - name: Publish (trusted publishing, provenance)
+        run: npm publish --provenance
