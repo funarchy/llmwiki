@@ -32,10 +32,11 @@ program
 
 program
   .command('init')
-  .description('scaffold an wiki-sticky bundle in this repository')
+  .description('scaffold a wiki-sticky bundle in this repository')
   .option('-y, --yes', 'accept all defaults without prompting', false)
-  .action(async (opts: { yes: boolean }) => {
-    await runAction(() => initCommand(process.cwd(), { yes: opts.yes }));
+  .option('--no-install', 'do not add wiki-sticky as a dev dependency')
+  .action(async (opts: { yes: boolean; install: boolean }) => {
+    await runAction(() => initCommand(process.cwd(), { yes: opts.yes, install: opts.install }));
   });
 
 program

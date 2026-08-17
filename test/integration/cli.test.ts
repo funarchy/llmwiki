@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { packageRoot } from '../../src/paths.js';
@@ -59,6 +59,25 @@ describe('wiki-sticky CLI', () => {
     const gaps = run(['gaps'], cwd);
     expect(gaps.status).toBe(0);
     expect(gaps.stdout).toMatch(/## Open gaps/);
+  });
+
+  it('init --no-install leaves the dep out and says how to arm the hook (#14)', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-e2e-'));
+    writeFileSync(join(cwd, 'package.json'), '{ "name": "consumer" }\n');
+    const init = run(['init', '--yes', '--no-install'], cwd);
+    expect(init.status).toBe(0);
+    expect(init.stdout).toMatch(/Skipped self-install/);
+    const pkg = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf-8')) as {
+      devDependencies?: Record<string, string>;
+    };
+    expect(pkg.devDependencies?.['wiki-sticky']).toBeUndefined();
+  });
+
+  it('init without package.json says the hook is not wired (#14)', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'wiki-sticky-e2e-'));
+    const init = run(['init', '--yes'], cwd);
+    expect(init.status).toBe(0);
+    expect(init.stdout).toMatch(/NOT wired/);
   });
 
   it('every command fails clearly outside an initialized repository', () => {

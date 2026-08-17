@@ -6,25 +6,40 @@ description: What init scaffolds, what it prompts for, and how it handles an exi
 tags: [commands, init]
 sources:
   - src/commands/init.ts
+  - src/commands/self-pin.ts
   - templates/root-index.md
   - templates/pre-commit.sh
 ---
 
-`wiki-sticky init [--yes]` scaffolds a bundle in the current repository:
-`<root>/index.md` (from `templates/root-index.md`, or adopted as-is if a
-plausible bundle already exists), `<root>/_meta/page.schema.json`,
-`<root>/_meta/eval/index.md`, and `wiki-sticky.yaml`. If `package.json` exists,
-it also adds the bundle root and `wiki-sticky.yaml` to `package.json#files` and
-an `wiki-sticky:lint` script. Then it calls `syncSkills` against the
+`wiki-sticky init [--yes] [--no-install]` scaffolds a bundle in the
+current repository: `<root>/index.md` (from `templates/root-index.md`,
+or adopted as-is if a plausible bundle already exists),
+`<root>/_meta/page.schema.json`, `<root>/_meta/eval/index.md`, and
+`wiki-sticky.yaml`. If `package.json` exists, it also adds the bundle
+root and `wiki-sticky.yaml` to `package.json#files` and a
+`wiki-sticky:lint` script. Then it calls `syncSkills` against the
 just-written config (`skills: managed` by default), installing the five
-shipped skills into `.claude/skills/` and `.agents/skills/` — see [skills
-overview][skills-overview].
+shipped skills into `.claude/skills/` and `.agents/skills/` — see
+[skills overview][skills-overview].
 
-**Adoption**: `findAdoptableRoot` checks, in order, `wiki/`, `wiki/` and
-`docs/wiki/` for an existing `index.md`, and offers that directory as the
-suggested bundle root instead of creating a second one. `--yes` accepts the
-suggestion (or the `wiki-sticky` default) without prompting; interactively,
-`init` asks for the bundle root and whether to install a pre-commit hook.
+**Self-pin** (`selfPin`, `src/commands/self-pin.ts`): because the
+script and hook init writes need `node_modules/.bin/wiki-sticky` to
+exist, init also adds wiki-sticky itself as a dev dependency, pinned to
+the running CLI's own version (`wiki-sticky@^<version>`). The package
+manager is detected by lockfile — `bun.lock`/`bun.lockb`,
+`pnpm-lock.yaml`, `yarn.lock`, npm as the no-lockfile default. It skips
+silently when wiki-sticky is already a dependency or the repository is
+wiki-sticky itself, skips loudly (the report says the script and hook
+are NOT wired) when there is no `package.json`, reports a failed
+package-manager run without aborting init, and `--no-install` opts out
+explicitly.
+
+**Adoption**: `findAdoptableRoot` checks, in order, `wiki/` and
+`docs/wiki/` for an existing `index.md`, and offers that directory as
+the suggested bundle root instead of creating a second one. `--yes`
+accepts the suggestion (or the `wiki` default) without prompting;
+interactively, `init` asks for the bundle root and whether to install a
+pre-commit hook.
 
 **The pre-commit hook** (`templates/pre-commit.sh`) is a real git hook,
 installed at `.git/hooks/pre-commit` unless one is already present (in which

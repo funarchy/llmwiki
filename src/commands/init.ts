@@ -3,6 +3,7 @@ import { basename, join } from 'node:path';
 import { CONFIG_FILENAME, DEFAULT_ROOT, loadConfig, validateBundleRoot } from '../config.js';
 import { packageRoot } from '../paths.js';
 import { ask, confirm } from '../prompt.js';
+import { selfPin, type SelfPinOptions, type SelfPinResult } from './self-pin.js';
 import { syncSkills } from './skills.js';
 
 export interface InitOptions {
@@ -11,6 +12,8 @@ export interface InitOptions {
   installHook: boolean;
   /** Heading for the generated root index. */
   title: string;
+  /** Self-install behaviour; tests inject `exec`, `--no-install` sets `skip`. */
+  selfPin?: SelfPinOptions;
 }
 
 export interface InitResult {
@@ -21,6 +24,7 @@ export interface InitResult {
   hookSkipped: boolean;
   foundDocsDir: boolean;
   skillsInstalled: string[];
+  selfPin: SelfPinResult;
 }
 
 /** Directories that look like an existing bundle, in preference order. */
@@ -111,6 +115,10 @@ export function runInit(options: InitOptions): InitResult {
 
   const wrotePackageJson = updatePackageJson(repoRoot, bundleRoot);
 
+  // The script and hook written above need wiki-sticky itself installed — a
+  // one-command start must leave the gate armed, not hand out homework (#14).
+  const selfPinResult = selfPin(repoRoot, options.selfPin);
+
   // Config just written is `skills: managed` by default — install the five
   // shipped skills into this repository's own working trees.
   const { installed: skillsInstalled } = syncSkills(repoRoot, loadConfig(repoRoot));
@@ -137,6 +145,7 @@ export function runInit(options: InitOptions): InitResult {
     hookSkipped,
     foundDocsDir: existsSync(join(repoRoot, 'docs')),
     skillsInstalled,
+    selfPin: selfPinResult,
   };
 }
 
@@ -145,6 +154,8 @@ export { DEFAULT_ROOT };
 export interface InitCommandOptions {
   /** Skip prompts and take every default. */
   yes: boolean;
+  /** False when `--no-install` was passed: don't add wiki-sticky as a dep. */
+  install: boolean;
 }
 
 function titleFrom(repoRoot: string): string {
@@ -167,12 +178,18 @@ export async function initCommand(cwd: string, options: InitCommandOptions): Pro
     installHook = await confirm('Install a git pre-commit hook that runs wiki-sticky lint?', true);
   }
 
-  const result = runInit({ repoRoot: cwd, bundleRoot, installHook, title: titleFrom(cwd) });
+  const result = runInit({
+    repoRoot: cwd,
+    bundleRoot,
+    installHook,
+    title: titleFrom(cwd),
+    selfPin: { skip: !options.install },
+  });
 
   console.log(`${result.adoptedExisting ? 'Adopted' : 'Created'} bundle root: ${result.bundleRoot}/`);
   console.log(`Wrote ${CONFIG_FILENAME}`);
   if (result.wrotePackageJson) {
-    console.log(`Added ${result.bundleRoot} and ${CONFIG_FILENAME} to package.json#files, plus an wiki-sticky:lint script`);
+    console.log(`Added ${result.bundleRoot} and ${CONFIG_FILENAME} to package.json#files, plus a wiki-sticky:lint script`);
   }
   if (result.hookInstalled) console.log('Installed .git/hooks/pre-commit');
   if (result.hookSkipped) console.log('Left the existing .git/hooks/pre-commit in place');
@@ -182,6 +199,20 @@ export async function initCommand(cwd: string, options: InitCommandOptions): Pro
   if (result.skillsInstalled.length > 0) {
     console.log(`Installed skills: ${result.skillsInstalled.join(', ')}`);
   }
+
+  const pin = result.selfPin;
+  if (pin.installed) {
+    console.log(`Installed wiki-sticky as a dev dependency (${pin.packageManager}) — the lint script and pre-commit hook are live.`);
+  } else if (pin.skipped === 'no-package-json') {
+    console.log('No package.json — the wiki-sticky:lint script and pre-commit hook are NOT wired.');
+    console.log('Create one (`npm init -y`), then run `npm install --save-dev wiki-sticky` to arm them.');
+  } else if (pin.skipped === 'opted-out') {
+    console.log('Skipped self-install (--no-install) — run `npm install --save-dev wiki-sticky` to arm the hook.');
+  } else if (pin.skipped === 'failed') {
+    console.log(`${pin.packageManager} failed to install wiki-sticky — the hook stays unarmed until \`${pin.packageManager === 'npm' ? 'npm install --save-dev' : `${pin.packageManager} add -D`} wiki-sticky\` succeeds.`);
+  }
+  // 'already-present' and 'self' need no line: the wiring is already live.
+
   console.log('Next: run `wiki-sticky lint`.');
 
   return 0;
