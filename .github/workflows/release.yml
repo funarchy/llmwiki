@@ -2,9 +2,11 @@ name: release
 
 # Gated release: started by hand against merged main, approved in the
 # browser (the `release` environment requires a reviewer), executed
-# entirely in CI. The full gate runs before anything is pushed; the
-# version commit + tag are pushed only after it is green; the publish
-# uses npm trusted publishing (OIDC) — no token exists anywhere.
+# entirely in CI. The full gate runs before anything irreversible; the
+# version commit reaches main through a pull request the workflow opens
+# and merges itself — satisfying the PR-only rule instead of bypassing
+# it — and the publish uses npm trusted publishing (OIDC): no token
+# exists anywhere.
 on:
   workflow_dispatch:
     inputs:
@@ -15,7 +17,8 @@ on:
         default: patch
 
 permissions:
-  contents: write # push the version commit and tag
+  contents: write # push the release branch and the tag
+  pull-requests: write # open and merge the release PR
   id-token: write # OIDC exchange for npm trusted publishing
 
 concurrency:
@@ -26,16 +29,22 @@ jobs:
   release:
     runs-on: ubuntu-latest
     environment: release
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
+      # No registry-url here, deliberately: setup-node's registry-url writes
+      # an `_authToken=${NODE_AUTH_TOKEN}` line into .npmrc; with no token
+      # secret (the intended state for trusted publishing) it expands empty,
+      # npm treats that as "auth configured" and never starts the OIDC
+      # exchange — failing with ENEEDAUTH (npm/documentation#1960).
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-          registry-url: https://registry.npmjs.org
-      # Trusted publishing needs a newer npm than node 20 ships.
+      # Trusted publishing needs npm >= 11.5.1; node 20 ships older.
       - run: npm install -g npm@latest
       # The full gate, before anything irreversible.
       - run: npm ci
@@ -45,13 +54,35 @@ jobs:
       - run: node dist/cli.js lint
       - run: node dist/cli.js install --frozen
       # npm version runs the `version` lifecycle hook, which mirrors the
-      # new version into .claude-plugin/plugin.json inside the same commit.
-      - name: Bump version
+      # new version into .claude-plugin/plugin.json; the commit lands on
+      # a release branch, never directly on main.
+      - name: Bump version on a release branch
+        id: bump
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          npm version ${{ inputs.bump }}
-      - name: Push release commit and tag
-        run: git push origin HEAD:main --follow-tags
+          npm version ${{ inputs.bump }} --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          git switch -c "release/v$VERSION"
+          git commit -am "v$VERSION"
+          git push -u origin "release/v$VERSION"
+      # The exact gate just ran on this same tree; the PR exists to
+      # satisfy the main ruleset, and the workflow merges it itself.
+      - name: Open and merge the release PR
+        id: merge
+        run: |
+          PR_URL=$(gh pr create \
+            --title "Release v${{ steps.bump.outputs.version }}" \
+            --body "Version bump by the release workflow (run ${{ github.run_id }}); the full gate ran green in this run before the bump. Merged by the workflow itself.")
+          gh pr merge "$PR_URL" --squash --delete-branch || { sleep 10; gh pr merge "$PR_URL" --squash --delete-branch; }
+          SHA=$(gh pr view "$PR_URL" --json mergeCommit -q .mergeCommit.oid)
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+      - name: Tag the merged commit
+        run: |
+          git tag "v${{ steps.bump.outputs.version }}" "${{ steps.merge.outputs.sha }}"
+          git push origin "v${{ steps.bump.outputs.version }}"
+      # The working tree's content is byte-identical to the merged squash
+      # commit (one commit, squashed); prepublishOnly reruns the gate.
       - name: Publish (trusted publishing, provenance)
         run: npm publish --provenance
