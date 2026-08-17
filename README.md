@@ -21,14 +21,10 @@ One command, in any repository:
 npx wiki-sticky init          # scaffold wiki/, wiki-sticky.yaml and the skillset
 ```
 
-Then pin it, so the pre-commit hook and CI run the version you chose:
-
-```bash
-npm install --save-dev wiki-sticky
-```
-
-Every command works through [`npx wiki-sticky`](https://www.npmjs.com/package/wiki-sticky),
-installed or not:
+`init` also pins [`wiki-sticky`](https://www.npmjs.com/package/wiki-sticky)
+as a dev dependency (npm, pnpm, yarn and bun are detected by lockfile), so
+the lint script and pre-commit hook it writes are live immediately — pass
+`--no-install` to opt out. Every command works through `npx wiki-sticky`:
 
 ```bash
 npx wiki-sticky lint          # hold the bundle to the schema
